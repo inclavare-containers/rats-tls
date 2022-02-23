@@ -181,6 +181,7 @@ bool is_tdguest_supported(void)
 	return (sig[1] == 0x65746e49) && (sig[3] == 0x5844546c) && (sig[2] == 0x20202020);
 }
 
+#ifndef SGX
 /* rdmsr 0xc0010131
  * bit[0]
  * 	0 = Guest SEV is not active;
@@ -211,9 +212,14 @@ static uint64_t read_msr(uint32_t reg)
 
 	return data;
 }
+#endif
 
 /* check whether running in AMD SEV-SNP guest */
 bool is_snpguest_supported(void)
 {
+#ifndef SGX
 	return !!(read_msr(SEV_STATUS_MSR) & (1 << SEV_SNP_FLAG));
+#else
+	return false;
+#endif
 }

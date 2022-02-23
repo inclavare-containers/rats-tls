@@ -1,6 +1,6 @@
 add_subdirectory(nullattester)
 
-if(EXISTS "/usr/include/linux/sev-guest.h")
+if((EXISTS "/usr/include/linux/sev-guest.h") AND HOST)
     add_subdirectory(sev-snp)
 endif()
 
