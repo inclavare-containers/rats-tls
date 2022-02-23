@@ -64,13 +64,14 @@ Right now, RATS TLS supports the following instance types:
 
 | Priority    | Tls Wrapper instances |     Attester instances     |     Verifier instances     | Crypto Wrapper Instance |
 | ----------- | --------------------- | -------------------------- | -------------------------- | ----------------------- |
-| low         | nulltls               | nullattester               | nullverifier               | nullcrypto              |
-| Medium      | openssl               | sgx\_la                    | sgx\_la                    | openssl                 |
-| High        | openssl               | sev\_snp                   | sev\_snp                   | openssl                 |
-| High        | openssl               | tdx\_ecdsa                 | tdx\_ecdsa                 | openssl                 |
-| Higher      | openssl               | sgx\_ecdsa                 | sgx\_ecdsa sgx\_ecdsa\_qve | openssl                 |
+| 0         | nulltls               | nullattester               | nullverifier               | nullcrypto              |
+| 15        | openssl               | sgx\_la                    | sgx\_la                    | openssl                 |
+| 42        | openssl               | sev\_snp                   | sev\_snp                   | openssl                 |
+| 42        | openssl               | tdx\_ecdsa                 | tdx\_ecdsa                 | openssl                 |
+| 52        | openssl               | sgx\_ecdsa                 | sgx\_ecdsa                 | openssl                 |
+| 53        | openssl               | sgx\_ecdsa                 | sgx\_ecdsa\_qve            | openssl                 |
 
-By default, RATS TLS will select the **highest priority** instance to use.
+For instance priority, the higher, the stronger. By default, RATS TLS will select the **highest priority** instance to use.
 
 ## Run RATS TLS server
 
