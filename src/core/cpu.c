@@ -13,9 +13,6 @@
 #ifndef SGX
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <rats-tls/log.h>
 #else
 #include "rtls_t.h"
 #endif
@@ -179,41 +176,4 @@ bool is_tdguest_supported(void)
 
 	/* "IntelTDX    " */
 	return (sig[1] == 0x65746e49) && (sig[3] == 0x5844546c) && (sig[2] == 0x20202020);
-}
-
-/* rdmsr 0xc0010131
- * bit[0]
- * 	0 = Guest SEV is not active;
- * 	1 = Guest SEV is active
- * bit[1]
- * 	0 = Guest SEV-ES is not active
- * 	1 = Guest SEV-ES is active
- * bit[2]
- * 	0 = Guest SEV-SNP is not active;
- * 	1 = Guest SEV-SNP is active
- */
-static uint64_t read_msr(uint32_t reg)
-{
-	int fd = open("/dev/cpu/0/msr", O_RDONLY);
-	if (fd < 0) {
-		RTLS_ERR("failed to open msr\n");
-		return 0;
-	}
-
-	uint64_t data;
-	if (pread(fd, &data, sizeof(data), reg) != sizeof(data)) {
-		close(fd);
-		RTLS_ERR("failed to read msr %#x\n", reg);
-		return 0;
-	}
-
-	close(fd);
-
-	return data;
-}
-
-/* check whether running in AMD SEV-SNP guest */
-bool is_snpguest_supported(void)
-{
-	return !!(read_msr(SEV_STATUS_MSR) & (1 << SEV_SNP_FLAG));
 }

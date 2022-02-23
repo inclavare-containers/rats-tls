@@ -160,11 +160,6 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 		if (!x509_extension_add(cert, tdx_quote_oid, tdx->quote, tdx->quote_len))
 			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sev_snp")) {
-		snp_attestation_evidence_t *snp = &cert_info->evidence.snp;
-
-		if (!x509_extension_add(cert, snp_report_oid, snp->report, snp->report_len))
-			goto err;
 	}
 
 	ret = -CRYPTO_WRAPPER_ERR_CERT;

@@ -23,7 +23,6 @@
 #define ENCLAVE_VERIFIER_OPTS_FLAGS_SGX1_ENCLAVE (1 << 0)
 #define ENCLAVE_VERIFIER_OPTS_FLAGS_SGX2_ENCLAVE (1 << 1)
 #define ENCLAVE_VERIFIER_OPTS_FLAGS_TDX		 (1 << 2)
-#define ENCLAVE_VERIFIER_OPTS_FLAGS_SNP		 (1 << 3)
 
 typedef struct enclave_verifier_ctx enclave_verifier_ctx_t;
 

@@ -62,13 +62,12 @@ Note that [SGX LVI mitigation](https://software.intel.com/security-software-guid
 
 Right now, RATS TLS supports the following instance types:
 
-| Priority    | Tls Wrapper instances |     Attester instances     |     Verifier instances     | Crypto Wrapper Instance |
-| ----------- | --------------------- | -------------------------- | -------------------------- | ----------------------- |
-| low         | nulltls               | nullattester               | nullverifier               | nullcrypto              |
-| Medium      | openssl               | sgx\_la                    | sgx\_la                    | openssl                 |
-| High        | openssl               | sev\_snp                   | sev\_snp                   | openssl                 |
-| High        | openssl               | tdx\_ecdsa                 | tdx\_ecdsa                 | openssl                 |
-| Higher      | openssl               | sgx\_ecdsa                 | sgx\_ecdsa sgx\_ecdsa\_qve | openssl                 |
+| Priority | Tls Wrapper instances |     Attester instances     |     Verifier instances     | Crypto Wrapper Instance |
+| -------- | --------------------- | -------------------------- | -------------------------- | ----------------------- |
+| low      | nulltls               | nullattester               | nullverifier               | nullcrypto              |
+| Medium   | openssl               | sgx\_la                    | sgx\_la                    | openssl                 |
+| High     | openssl               | tdx\_ecdsa                 | tdx\_ecdsa                 | openssl                 |
+| Higher   | openssl               | sgx\_ecdsa                 | sgx\_ecdsa sgx\_ecdsa\_qve | openssl                 |
 
 By default, RATS TLS will select the **highest priority** instance to use.
 
@@ -91,8 +90,6 @@ Check msr 0x503, return value must be 0:
 ```
 sudo rdmsr 0x503s
 ```
-
-Note that if you want to run SEV-SNP remote attestation, please refer to [link](https://github.com/AMDESE/AMDSEV/tree/sev-snp-devel) to set up the host and guest Linux kernel, qemu and ovmf bios used for launching SEV-SNP guest.
 
 ## Specify the instance type
 

@@ -1,6 +1,5 @@
 add_subdirectory(nullverifier)
 add_subdirectory(sgx-ecdsa)
-add_subdirectory(sev-snp)
 
 if(TDX)
     add_subdirectory(tdx-ecdsa)

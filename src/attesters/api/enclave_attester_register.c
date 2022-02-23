@@ -28,16 +28,6 @@ enclave_attester_err_t enclave_attester_register(const enclave_attester_opts_t *
 		}
 	}
 
-	if (opts->flags & ENCLAVE_ATTESTER_OPTS_FLAGS_SNP_GUEST) {
-		if (!is_snpguest_supported()) {
-			// clang-format off
-			RTLS_DEBUG("failed to register the attester '%s' due to lack of SNP Guest capability\n",
-				   opts->type);
-			// clang-format on
-			return -ENCLAVE_ATTESTER_ERR_CPU_UNSUPPORTED;
-		}
-	}
-
 	enclave_attester_opts_t *new_opts = (enclave_attester_opts_t *)malloc(sizeof(*new_opts));
 	if (!new_opts)
 		return -ENCLAVE_ATTESTER_ERR_NO_MEM;
