@@ -327,8 +327,9 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 
 	if (preverify == 0) {
 		int err = X509_STORE_CTX_get_error(ctx);
+
 		if (err != X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) {
-			RTLS_ERR("This is not a self-signed cert\n");
+			RTLS_ERR("Failed on pre-verification due to %d\n", err);
 			return 0;
 		}
 	}
