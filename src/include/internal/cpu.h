@@ -26,5 +26,6 @@ extern bool is_sgx1_supported(void);
 extern bool is_sgx2_supported(void);
 extern bool is_tdguest_supported(void);
 extern bool is_snpguest_supported(void);
+extern bool is_sevguest_supported(void);
 
 #endif /* _INTERNAL_CPU_H */
