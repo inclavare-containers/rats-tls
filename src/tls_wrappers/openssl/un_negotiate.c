@@ -262,6 +262,10 @@ int openssl_extract_x509_extensions(X509 *crt, attestation_evidence_t *evidence)
 		evidence->snp.report_len = sizeof(evidence->snp.report);
 		return find_extension_from_cert(crt, snp_report_oid, evidence->snp.report,
 						&evidence->snp.report_len);
+	} else if (!strcmp(evidence->type, "sev")) {
+		evidence->sev.report_len = sizeof(evidence->sev.report);
+		return find_extension_from_cert(crt, sev_report_oid, evidence->sev.report,
+						&evidence->sev.report_len);
 	} else
 		RTLS_WARN("Unhandled evidence type %s\n", evidence->type);
 
@@ -340,6 +344,8 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		snprintf(evidence.type, sizeof(evidence.type), "%s", "sgx_la");
 	else if (find_oid(cert, (const char *)snp_report_oid) == SSL_SUCCESS)
 		snprintf(evidence.type, sizeof(evidence.type), "%s", "sev_snp");
+	else if (find_oid(cert, (const char *)sev_report_oid) == SSL_SUCCESS)
+		snprintf(evidence.type, sizeof(evidence.type), "%s", "sev");
 	else
 		snprintf(evidence.type, sizeof(evidence.type), "%s", "nullverifier");
 
