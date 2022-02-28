@@ -223,3 +223,15 @@ bool is_snpguest_supported(void)
 	return false;
 #endif
 }
+
+/* check whether running in AMD SEV(-ES) guest */
+bool is_sevguest_supported(void)
+{
+#ifndef SGX
+	uint64_t data = read_msr(SEV_STATUS_MSR);
+
+	return !!data || !!(data & (1 << SEV_ES_FLAG));
+#else
+	return false;
+#endif
+}
