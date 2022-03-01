@@ -13,7 +13,6 @@ crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cer
 {
 	openssl_ctx *octx = NULL;
 	unsigned char *p = privkey_buf;
-	EC_GROUP *group = NULL;
 	BIGNUM *e = NULL;
 	int len = 0;
 	int ret;
@@ -34,31 +33,13 @@ crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cer
 	ret = -CRYPTO_WRAPPER_ERR_NO_MEM;
 
 	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
-		octx->eckey = EC_KEY_new();
+		octx->eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 		if (octx->eckey == NULL)
 			goto err;
 
 		ret = -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
 
-		/* P_CURVE_256 */
-		int nid = NID_X9_62_prime256v1;
-		group = EC_GROUP_new_by_curve_name(nid);
-		if (group == NULL)
-			goto err;
-
-		if (EC_KEY_set_group(octx->eckey, group) == 0)
-			goto err;
-
-		EC_GROUP_free(group);
-
-		/* Get elliptic curve key length */
-		len = EC_GROUP_get_degree(EC_KEY_get0_group(octx->eckey));
-		if (len < 160) {
-			/* drop the curve */
-			RTLS_DEBUG(
-				"# FAIL: As the degree is less than 160, Drop the curve from processing\n");
-			goto err;
-		}
+		EC_KEY_set_asn1_flag(octx->eckey, OPENSSL_EC_NAMED_CURVE);
 
 		/* Generating public-private key */
 		if (!EC_KEY_generate_key(octx->eckey))
@@ -137,9 +118,6 @@ err:
 			EC_KEY_free(octx->eckey);
 			octx->eckey = NULL;
 		}
-
-		if (group)
-			EC_GROUP_free(group);
 	} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
 		RTLS_DEBUG("failed to generate RSA-3072 private key %d\n", ret);
 
