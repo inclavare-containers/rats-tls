@@ -3,6 +3,7 @@ add_subdirectory(sgx-ecdsa)
 
 if(HOST)
     add_subdirectory(sev-snp)
+    add_subdirectory(sev)
 endif()
 
 if(TDX)
