@@ -48,5 +48,9 @@ static inline void print_openssl_err(SSL *ssl, int ret)
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 extern int X509_STORE_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 				       CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+extern const STACK_OF(X509_EXTENSION) * X509_get0_extensions(const X509 *x);
+extern int X509_STORE_set_ex_data(X509_STORE *ctx, int idx, void *data);
+extern void *X509_STORE_get_ex_data(const X509_STORE *ctx, int idx);
+extern X509_STORE *X509_STORE_CTX_get0_store(X509_STORE_CTX *ctx);
 #endif
 #endif
