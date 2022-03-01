@@ -82,7 +82,16 @@ typedef struct rtls_sgx_evidence {
 } rtls_sgx_evidence_t;
 
 typedef struct rtls_tdx_evidence {
-	/* TODO */
+    uint8_t *mrseam;
+    uint8_t *mrseamsigner;
+    uint8_t *tcb_svns;
+    uint8_t *cpu_svn;
+    uint8_t *mrtd;
+    uint8_t *rtmr; /* 48 bytes */
+    uint8_t *tdel_info;
+    uint32_t tdel_info_sz;
+    uint8_t *tdel_data;
+    uint32_t tdel_data_sz;
 } rtls_tdx_evidence_t;
 
 /* The public_key, user_data_size and user_data are needed to include in hash. */

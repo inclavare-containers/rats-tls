@@ -14,6 +14,10 @@
 #include <internal/core.h>
 #include "sgx_report.h"
 #include "sgx_quote_3.h"
+#ifdef TDX
+#include "sgx_quote_4.h"
+#include "sgx_report2.h"
+#endif
 #include "per_thread.h"
 #include "openssl.h"
 
@@ -356,27 +360,41 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		return 0;
 	}
 
-	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
-		rtls_evidence_t ev;
-		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
+    if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
+        rtls_evidence_t ev;
+        sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
 
-		ev.sgx.mr_enclave = (char *)quote3->report_body.mr_enclave.m;
-		ev.sgx.mr_signer = quote3->report_body.mr_signer.m;
-		ev.sgx.product_id = quote3->report_body.isv_prod_id;
-		ev.sgx.security_version = quote3->report_body.isv_svn;
-		ev.sgx.attributes = (char *)&(quote3->report_body.attributes);
-		ev.type = SGX_ECDSA;
-		ev.quote = (char *)quote3;
-		ev.quote_size = sizeof(sgx_quote3_t);
+        ev.sgx.mr_enclave = (char *)quote3->report_body.mr_enclave.m;
+        ev.sgx.mr_signer = quote3->report_body.mr_signer.m;
+        ev.sgx.product_id = quote3->report_body.isv_prod_id;
+        ev.sgx.security_version = quote3->report_body.isv_svn;
+        ev.sgx.attributes = (char *)&(quote3->report_body.attributes);
+        ev.type = SGX_ECDSA;
+        ev.quote = (char *)quote3;
+        ev.quote_size = sizeof(sgx_quote3_t);
+    } else if (!strncmp(evidence.type, "tdx_ecdsa", sizeof(evidence.type))) {
+        rtls_evidence_t ev;
+        sgx_quote4_t *quote4 = (sgx_quote4_t *)evidence.tdx.quote ev.tdx.mrseam =
+            &(quote4->report_body.mrseam);
+        ev.tdx.mrseamsigner = &(quote4->report_body.mrsigner_seam);
+        ev.tdx.tcb_svns = &(quote4->report_body.tee_tcb_svn);
+        ev.tdx.mrtd = &(quote4->report_body.mr_td);
+        ev.tdx.rtmr = (char *)quote4->report_body.rt_mr;
+        ev.type = TDX_ECDSA;
+        ev.quote = (char *)quote4;
+        ev.tdx.tdel_info = &(evidence.tdx.quote[8192]);
+        ev.tdx.tdel_info_sz = TDEL_INFO_SZ;
+        ev.tdx.tdel_data = &(evidence.tdx.quote[8192 + TDEL_INFO_SZ]);
+        ev.tdx.tdel_data_sz = TDEL_DATA_SZ;
+    }
 
-		if (tls_ctx->rtls_handle->user_callback) {
-			rc = tls_ctx->rtls_handle->user_callback(&ev);
-			if (!rc) {
-				RTLS_ERR("failed to verify user callback %d\n", rc);
-				return 0;
-			}
-		}
-	}
+    if (tls_ctx->rtls_handle->user_callback) {
+        rc = tls_ctx->rtls_handle->user_callback(&ev);
+        if (!rc) {
+            RTLS_ERR("failed to verify user callback %d\n", rc);
+            return 0;
+        }
+    }
 
 	return SSL_SUCCESS;
 }
