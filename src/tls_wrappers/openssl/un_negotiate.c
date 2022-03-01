@@ -44,74 +44,61 @@ done:
 	return result;
 }
 
-static crypto_wrapper_err_t sha256_ecc_pubkey(unsigned char hash[SHA256_HASH_SIZE], EC_KEY *key)
+static crypto_wrapper_err_t calc_pubkey_hash(X509 *cert, uint8_t *hash, int *hash_size)
 {
-	int len = i2d_EC_PUBKEY(key, NULL);
-	unsigned char buf[len];
-	unsigned char *p = buf;
-
-	len = i2d_EC_PUBKEY(key, &p);
-
-	SHA256(buf, len, hash);
-
-	// clang-format off
-	RTLS_DEBUG("the sha256 of public key [%d] %02x%02x%02x%02x%02x%02x%02x%02x...%02x%02x%02x%02x\n",
-		len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
-		hash[SHA256_HASH_SIZE - 4], hash[SHA256_HASH_SIZE - 3], hash[SHA256_HASH_SIZE - 2],
-		hash[SHA256_HASH_SIZE - 1]);
-	// clang-format on
-
-	return CRYPTO_WRAPPER_ERR_NONE;
-}
-
-static crypto_wrapper_err_t sha256_rsa_pubkey(unsigned char hash[SHA256_HASH_SIZE], RSA *key)
-{
-	int len = i2d_RSAPublicKey(key, NULL);
-
-	unsigned char buf[len];
-	unsigned char *p = buf;
-	len = i2d_RSAPublicKey(key, &p);
-
-	SHA256(buf, len, hash);
-
-	// clang-format off
-	RTLS_DEBUG("the sha256 of public key [%d] %02x%02x%02x%02x%02x%02x%02x%02x...%02x%02x%02x%02x\n",
-		len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
-		hash[SHA256_HASH_SIZE - 4], hash[SHA256_HASH_SIZE - 3], hash[SHA256_HASH_SIZE - 2],
-		hash[SHA256_HASH_SIZE - 1]);
-	// clang-format on
-
-	return CRYPTO_WRAPPER_ERR_NONE;
-}
-
-static crypto_wrapper_err_t calc_pubkey_hash(EVP_PKEY *pkey, rats_tls_cert_algo_t algo,
-					     uint8_t *hash)
-{
-	crypto_wrapper_err_t err;
-
-	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
-		EC_KEY *ecc = EVP_PKEY_get1_EC_KEY(pkey);
-		if (!ecc) {
-			RTLS_ERR("Unable to get ec key\n");
-			return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
-		}
-
-		err = sha256_ecc_pubkey(hash, ecc);
-	} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
-		RSA *rsa = EVP_PKEY_get1_RSA(pkey);
-		if (!rsa) {
-			RTLS_ERR("Unable to get rsa key\n");
-			return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
-		}
-		err = sha256_rsa_pubkey(hash, rsa);
-	} else {
-		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+	int hash_algo;
+	int pkey_algo;
+	if (!X509_get_signature_info(cert, &hash_algo, &pkey_algo, NULL, NULL)) {
+		RTLS_ERR("Failed on retrieving information about the signature of certificate\n");
+		return -CRYPTO_WRAPPER_ERR_INVALID;
 	}
 
-	if (err != CRYPTO_WRAPPER_ERR_NONE)
-		return err;
+	if (hash_algo == NID_undef) {
+		RTLS_ERR("Invalid signing digest algorithm\n");
+		return -CRYPTO_WRAPPER_ERR_INVALID;
+	}
 
-	return CRYPTO_WRAPPER_ERR_NONE;
+	const EVP_MD *md = EVP_get_digestbynid(hash_algo);
+	if (!md) {
+		RTLS_ERR("Invalid signing digest algorithm for EVP_MD\n");
+		return -CRYPTO_WRAPPER_ERR_INVALID;
+	}
+
+	if (pkey_algo == NID_undef) {
+		RTLS_ERR("Invalid public key algorithm\n");
+		return -CRYPTO_WRAPPER_ERR_INVALID;
+	}
+
+	EVP_PKEY *pkey = X509_get_pubkey(cert);
+	if (!pkey) {
+		RTLS_ERR("Unable to decode the public key from certificate\n");
+		return -CRYPTO_WRAPPER_ERR_INVALID;
+	}
+
+	crypto_wrapper_err_t err = CRYPTO_WRAPPER_ERR_NONE;
+
+	int len = i2d_PUBKEY(pkey, NULL);
+	unsigned char buf[len];
+	unsigned char *p = buf;
+	len = i2d_PUBKEY(pkey, &p);
+
+	if (!EVP_Digest(buf, len, hash, NULL, md, NULL)) {
+		RTLS_ERR("Failed to hash the public key\n");
+		err = -CRYPTO_WRAPPER_ERR_INVALID;
+	}
+
+	*hash_size = EVP_MD_size(md);
+
+	// clang-format off
+	RTLS_DEBUG("The hash of public key [%d] %02x%02x%02x%02x%02x%02x%02x%02x...%02x%02x%02x%02x\n",
+		   len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
+		   hash[*hash_size - 4], hash[*hash_size - 3], hash[*hash_size - 2],
+		   hash[*hash_size - 1]);
+	// clang-format on
+
+	EVP_PKEY_free(pkey);
+
+	return err;
 }
 
 static int find_oid(X509 *crt, const char *oid)
@@ -334,27 +321,9 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		}
 	}
 
-	rats_tls_cert_algo_t cert_algo = tls_ctx->rtls_handle->config.cert_algo;
-	uint32_t hash_size;
-
-	switch (cert_algo) {
-	case RATS_TLS_CERT_ALGO_RSA_3072_SHA256:
-	case RATS_TLS_CERT_ALGO_ECC_256_SHA256:
-		hash_size = SHA256_HASH_SIZE;
-		break;
-	default:
-		return 0;
-	}
-
-	EVP_PKEY *publickey = X509_get_pubkey(cert);
-	if (!publickey) {
-		RTLS_ERR("Unable to decode the public key from certificate\n");
-		return 0;
-	}
-
-	uint8_t hash[hash_size];
-	crypto_wrapper_err_t err = calc_pubkey_hash(publickey, cert_algo, hash);
-	EVP_PKEY_free(publickey);
+	uint8_t hash[EVP_MAX_MD_SIZE];
+	int hash_size;
+	crypto_wrapper_err_t err = calc_pubkey_hash(cert, hash, &hash_size);
 	if (err != CRYPTO_WRAPPER_ERR_NONE)
 		return 0;
 

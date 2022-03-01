@@ -52,5 +52,6 @@ extern const STACK_OF(X509_EXTENSION) * X509_get0_extensions(const X509 *x);
 extern int X509_STORE_set_ex_data(X509_STORE *ctx, int idx, void *data);
 extern void *X509_STORE_get_ex_data(const X509_STORE *ctx, int idx);
 extern X509_STORE *X509_STORE_CTX_get0_store(X509_STORE_CTX *ctx);
+extern int X509_get_signature_info(X509 *x, int *mdnid, int *pknid, int *secbits, uint32_t *flags);
 #endif
 #endif
