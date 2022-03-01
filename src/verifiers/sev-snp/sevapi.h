@@ -16,6 +16,11 @@ typedef uint8_t hmac_sha_256[256 / 8];
 typedef uint8_t hmac_sha_384[384 / 8];
 typedef uint8_t hmac_sha_512[512 / 8];
 
+typedef enum __attribute__((mode(QI))) SHA_TYPE {
+	SHA_ALGO_256 = 0,
+	SHA_ALGO_384 = 1,
+} SHA_TYPE;
+
 // Appendix C.1: ALGO Enumeration
 /**
  * SEV Algorithm cipher codes.

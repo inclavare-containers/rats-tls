@@ -11,21 +11,16 @@
 #include <rats-tls/log.h>
 #include "crypto.h"
 
-typedef enum __attribute__((mode(QI))) SHA_TYPE {
-	SHA_TYPE_256 = 0,
-	SHA_TYPE_384 = 1,
-} SHA_TYPE;
-
 #define BITS_PER_BYTE 8
 
 /* The caller of digest_sha() must ensure the @digest_len is
  * correctly corresponding to @hash_algo
  */
-static bool digest_sha(const void *msg, size_t msg_len, uint8_t *digest, size_t digest_len,
-		       SHA_TYPE hash_algo)
+bool digest_sha(const void *msg, size_t msg_len, uint8_t *digest, size_t digest_len,
+		SHA_TYPE hash_algo)
 {
 	switch (hash_algo) {
-	case SHA_TYPE_256:
+	case SHA_ALGO_256:
 		assert(digest_len == SHA256_DIGEST_LENGTH);
 
 		SHA256_CTX context_256;
@@ -37,7 +32,7 @@ static bool digest_sha(const void *msg, size_t msg_len, uint8_t *digest, size_t 
 		if (SHA256_Final(digest, &context_256) != 1)
 			return false;
 		break;
-	case SHA_TYPE_384:
+	case SHA_ALGO_384:
 		assert(digest_len == SHA384_DIGEST_LENGTH);
 
 		SHA512_CTX context_512;
@@ -139,14 +134,14 @@ static bool rsa_verify(sev_sig *sig, EVP_PKEY **evp_pub_key, const uint8_t *hash
 
 		/* sLen is -2 means salt length is recovered from the signature. */
 		if (RSA_verify_PKCS1_PSS(rsa_pub_key, hash,
-					 (hash_algo == SHA_TYPE_256) ? EVP_sha256() : EVP_sha384(),
+					 (hash_algo == SHA_ALGO_256) ? EVP_sha256() : EVP_sha384(),
 					 decrypted, -2) != 1) {
 			RTLS_ERR("failed to verify rsa with pss\n");
 			goto err;
 		}
 	} else {
 		/* Verify the data */
-		if (RSA_verify((hash_algo == SHA_TYPE_256) ? NID_sha256 : NID_sha384, hash,
+		if (RSA_verify((hash_algo == SHA_ALGO_256) ? NID_sha256 : NID_sha384, hash,
 			       (uint32_t)hash_len, sig->rsa.s, sig_len, rsa_pub_key) != 1) {
 			RTLS_ERR("failed to verify rsa without pss\n");
 			goto err;
@@ -176,14 +171,14 @@ bool verify_message(sev_sig *sig, EVP_PKEY **evp_key_pair, const uint8_t *msg, s
 	case SEV_SIG_ALGO_RSA_SHA256:
 	case SEV_SIG_ALGO_ECDSA_SHA256:
 	case SEV_SIG_ALGO_ECDH_SHA256:
-		hash_algo = SHA_TYPE_256;
+		hash_algo = SHA_ALGO_256;
 		hash = sha256_digest;
 		hash_len = sizeof(hmac_sha_256);
 		break;
 	case SEV_SIG_ALGO_RSA_SHA384:
 	case SEV_SIG_ALGO_ECDSA_SHA384:
 	case SEV_SIG_ALGO_ECDH_SHA384:
-		hash_algo = SHA_TYPE_384;
+		hash_algo = SHA_ALGO_384;
 		hash = sha384_digest;
 		hash_len = sizeof(hmac_sha_384);
 		break;
