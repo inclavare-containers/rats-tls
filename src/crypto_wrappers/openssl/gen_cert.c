@@ -104,8 +104,8 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	ASN1_INTEGER_set(X509_get_serialNumber(cert), CERT_SERIAL_NUMBER);
 	/* WORKAROUND: allow 1 hour delay for the systems behind current clock */
 	X509_gmtime_adj(X509_get_notBefore(cert), -3600);
-	/* 10 years */
-	X509_gmtime_adj(X509_get_notAfter(cert), 3600 * 24 * 365 * 10);
+	/* 1 year */
+	X509_gmtime_adj(X509_get_notAfter(cert), (long)3600 * 24 * 365 * 1);
 
 	ret = -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
 	if (!X509_set_pubkey(cert, pkey))
