@@ -102,8 +102,8 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 	X509_set_version(cert, 3);
 	ASN1_INTEGER_set(X509_get_serialNumber(cert), CERT_SERIAL_NUMBER);
-	/* 0 indicate start from the current time */
-	X509_gmtime_adj(X509_get_notBefore(cert), 0);
+	/* WORKAROUND: allow 1 hour delay for the systems behind current clock */
+	X509_gmtime_adj(X509_get_notBefore(cert), -3600);
 	/* 10 years */
 	X509_gmtime_adj(X509_get_notAfter(cert), 3600 * 24 * 365 * 10);
 
