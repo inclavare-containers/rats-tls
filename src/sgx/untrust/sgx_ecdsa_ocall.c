@@ -77,7 +77,7 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(__attribute__((unused))
 		return -ENCLAVE_VERIFIER_ERR_NO_MEM;
 	}
 
-	memcpy(pquote, evidence->ecdsa.quote, evidence->ecdsa.quote_len);
+	memcpy(pquote, evidence->evidence.report, evidence->evidence.report_len);
 
 	uint32_t quote_size = (uint32_t)sizeof(sgx_quote3_t) + pquote->signature_data_len;
 	RTLS_DEBUG("quote size is %d, quote signature_data_len is %d\n", quote_size,
@@ -141,7 +141,7 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(__attribute__((unused))
 
 	current_time = time(NULL);
 
-	dcap_ret = sgx_qv_verify_quote(evidence->ecdsa.quote, (uint32_t)quote_size, NULL,
+	dcap_ret = sgx_qv_verify_quote(evidence->evidence.report, (uint32_t)quote_size, NULL,
 				       current_time, &collateral_expiration_status,
 				       &quote_verification_result, qve_report_info,
 				       supplemental_data_size, p_supplemental_data);
@@ -155,7 +155,7 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(__attribute__((unused))
 
 	if (!strcmp(name, "sgx_ecdsa_qve")) {
 		sgx_ret = sgx_tvl_verify_qve_report_and_identity(
-			enclave_id, &verify_qveid_ret, evidence->ecdsa.quote, (uint32_t)quote_size,
+			enclave_id, &verify_qveid_ret, evidence->evidence.report, (uint32_t)quote_size,
 			qve_report_info, current_time, collateral_expiration_status,
 			quote_verification_result, p_supplemental_data, supplemental_data_size,
 			qve_isvsvn_threshold);

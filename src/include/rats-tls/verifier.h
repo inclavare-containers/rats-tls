@@ -31,6 +31,7 @@ typedef struct {
 	uint8_t api_version;
 	unsigned long flags;
 	const char name[ENCLAVE_VERIFIER_TYPE_NAME_SIZE];
+	const char oid[OID_LENGTH];
 	/* Different attester instances may generate the same format of verifier,
 	 * e.g, sgx_ecdsa and sgx_ecdsa_qve both generate the format "sgx_ecdsa".
 	 * By default, the value of type equals to name.

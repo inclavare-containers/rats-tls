@@ -24,6 +24,7 @@ static enclave_attester_opts_t nullattester_opts = {
 	.api_version = ENCLAVE_ATTESTER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_ATTESTER_FLAGS_DEFAULT,
 	.name = "nullattester",
+        .oid = "",
 	.priority = 0,
 	.pre_init = nullattester_pre_init,
 	.init = nullattester_init,

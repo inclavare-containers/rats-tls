@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <rats-tls/verifier.h>
 #include <rats-tls/log.h>
+#include "sgx_la.h"
 
 extern enclave_verifier_err_t enclave_verifier_register(enclave_verifier_opts_t *);
 extern enclave_verifier_err_t sgx_la_verifier_pre_init(void);
@@ -21,6 +22,7 @@ static enclave_verifier_opts_t sgx_la_verifier_opts = {
 	.api_version = ENCLAVE_VERIFIER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_VERIFIER_OPTS_FLAGS_DEFAULT,
 	.name = "sgx_la",
+        .oid = LA_REPORT_OID,
 	.priority = 15,
 	.pre_init = sgx_la_verifier_pre_init,
 	.init = sgx_la_verifier_init,

@@ -7,7 +7,7 @@
 #include <string.h>
 #include <rats-tls/log.h>
 #include <rats-tls/verifier.h>
-#include "tdx-ecdsa.h"
+#include "tdx_ecdsa.h"
 
 enclave_verifier_err_t tdx_ecdsa_verifier_init(enclave_verifier_ctx_t *ctx,
 					       rats_tls_cert_algo_t algo)

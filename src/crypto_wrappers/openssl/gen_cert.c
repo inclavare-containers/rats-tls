@@ -8,7 +8,9 @@
 #include <rats-tls/log.h>
 #include <rats-tls/crypto_wrapper.h>
 #include <rats-tls/oid.h>
+#include <rats-tls/attester.h>
 #include "openssl.h"
+#include "internal/attester.h"
 
 #define CERT_SERIAL_NUMBER 9527
 
@@ -145,26 +147,22 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 		if (!x509_extension_add(cert, ias_report_signature_oid, epid->ias_report_signature,
 					epid->ias_report_signature_len))
 			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sgx_ecdsa")) {
-		ecdsa_attestation_evidence_t *ecdsa = &cert_info->evidence.ecdsa;
+	}
 
-		if (!x509_extension_add(cert, ecdsa_quote_oid, ecdsa->quote, ecdsa->quote_len))
+	enclave_attester_opts_t *opts = NULL;
+        for(int i = 0; i < registerd_enclave_attester_nums; ++i) {
+		opts = enclave_attesters_opts[i];
+		if (!opts) {
+			RTLS_DEBUG("registerd enclave_attesters_opts is null.\n");
 			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sgx_la")) {
-		la_attestation_evidence_t *la = &cert_info->evidence.la;
+		}
 
-		if (!x509_extension_add(cert, la_report_oid, la->report, la->report_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "tdx_ecdsa")) {
-		tdx_attestation_evidence_t *tdx = &cert_info->evidence.tdx;
-
-		if (!x509_extension_add(cert, tdx_quote_oid, tdx->quote, tdx->quote_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sev_snp")) {
-		snp_attestation_evidence_t *snp = &cert_info->evidence.snp;
-
-		if (!x509_extension_add(cert, snp_report_oid, snp->report, snp->report_len))
-			goto err;
+		if (!strcmp(cert_info->evidence.type, opts->name)) {
+			tee_attestation_evidence_t *evidence = &cert_info->evidence.evidence;
+			if (!x509_extension_add(cert, opts->oid, evidence->report, evidence->report_len))
+				goto err;
+			break;
+		}
 	}
 
 	ret = -CRYPTO_WRAPPER_ERR_CERT;

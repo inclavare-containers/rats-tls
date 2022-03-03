@@ -37,8 +37,8 @@ enclave_attester_err_t sgx_la_collect_evidence(enclave_attester_ctx_t *ctx,
 		return SGX_LA_ATTESTER_ERR_CODE((int)generate_evidence_ret);
 	}
 
-	memcpy(evidence->la.report, &isv_report, sizeof(isv_report));
-	evidence->la.report_len = sizeof(isv_report);
+	memcpy(evidence->evidence.report, &isv_report, sizeof(isv_report));
+	evidence->evidence.report_len = sizeof(isv_report);
 
 	snprintf(evidence->type, sizeof(evidence->type), "%s", "sgx_la");
 

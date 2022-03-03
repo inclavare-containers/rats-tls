@@ -26,7 +26,7 @@ enclave_verifier_err_t ocall_la_verify_evidence(enclave_verifier_ctx_t *ctx,
 	RTLS_DEBUG("ctx %p, evidence %p, hash %p\n", ctx, evidence, hash);
 
 	/* Firstly verify hash value */
-	sgx_report_t *lreport = (sgx_report_t *)evidence->la.report;
+	sgx_report_t *lreport = (sgx_report_t *)evidence->evidence.report;
 
 	if (memcmp(hash, lreport->body.report_data.d, hash_len) != 0) {
 		RTLS_ERR("unmatched hash value in evidence\n");
@@ -45,7 +45,7 @@ enclave_verifier_err_t ocall_la_verify_evidence(enclave_verifier_ctx_t *ctx,
 		return SGX_LA_VERIFIER_ERR_CODE((int)qe3_ret);
 	}
 
-	qe3_ret = sgx_qe_get_quote((sgx_report_t *)evidence->la.report, quote_size, quote);
+	qe3_ret = sgx_qe_get_quote((sgx_report_t *)evidence->evidence.report, quote_size, quote);
 	if (SGX_QL_SUCCESS != qe3_ret) {
 		RTLS_ERR("failed to get quote %04x\n", qe3_ret);
 		return SGX_LA_VERIFIER_ERR_CODE((int)qe3_ret);

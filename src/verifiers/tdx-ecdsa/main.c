@@ -7,6 +7,7 @@
 #include <rats-tls/log.h>
 #include <rats-tls/verifier.h>
 #include <stdio.h>
+#include "tdx_ecdsa.h"
 
 extern enclave_verifier_err_t enclave_verifier_register(enclave_verifier_opts_t *opts);
 extern enclave_verifier_err_t tdx_ecdsa_verifier_pre_init(void);
@@ -21,6 +22,7 @@ static enclave_verifier_opts_t tdx_ecdsa_verifier_opts = {
 	.api_version = ENCLAVE_VERIFIER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_VERIFIER_OPTS_FLAGS_TDX,
 	.name = "tdx_ecdsa",
+        .oid = TDX_QUOTE_OID,
 	.priority = 42,
 	.pre_init = tdx_ecdsa_verifier_pre_init,
 	.init = tdx_ecdsa_verifier_init,
