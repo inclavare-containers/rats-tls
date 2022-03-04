@@ -66,6 +66,7 @@ Right now, RATS TLS supports the following instance types:
 | ----------- | --------------------- | -------------------------- | -------------------------- | ----------------------- |
 | 0         | nulltls               | nullattester               | nullverifier               | nullcrypto              |
 | 15        | openssl               | sgx\_la                    | sgx\_la                    | openssl                 |
+| 35        | openssl               | sev                        | sev                        | openssl                 |
 | 42        | openssl               | sev\_snp                   | sev\_snp                   | openssl                 |
 | 42        | openssl               | tdx\_ecdsa                 | tdx\_ecdsa                 | openssl                 |
 | 52        | openssl               | sgx\_ecdsa                 | sgx\_ecdsa                 | openssl                 |
@@ -94,6 +95,11 @@ sudo rdmsr 0x503s
 ```
 
 Note that if you want to run SEV-SNP remote attestation, please refer to [link](https://github.com/AMDESE/AMDSEV/tree/sev-snp-devel) to set up the host and guest Linux kernel, qemu and ovmf bios used for launching SEV-SNP guest.
+
+**Notice: special prerequisites for SEV(-ES) remote attestation in software capability.**
+
+- Kernel support SEV(-ES) runtime attestation, please manually apply [these patches](https://github.com/haosanzi/attestation-evidence-broker/tree/master/hack/README.md).
+- Start the [attestation evidence broker](https://github.com/haosanzi/attestation-evidence-broker/blob/master/README.md) service in host.
 
 ## Specify the instance type
 
