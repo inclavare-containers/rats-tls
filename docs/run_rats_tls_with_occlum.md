@@ -12,7 +12,7 @@ docker run -it --privileged --network host \
   occlum/occlum:0.21.0-ubuntu18.04
 ```
 
-2. Please refer to [this guide](https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/master/README.md) to install DCAP. Note: If your platform is pre-product SGX platform (SBX), please follow [this guide](https://github.com/alibaba/inclavare-containers/blob/master/hack/use-sbx-platform/README.md) to resolve the quote verification problem on SBX platforms. 
+2. Please refer to [this guide](https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/master/README.md) to install DCAP. Note: If your platform is pre-product SGX platform (SBX), please follow [this guide](https://github.com/inclavare-containers/inclavare-containers/blob/master/hack/use-sbx-platform/README.md) to resolve the quote verification problem on SBX platforms.
 
 3. After you resolve the quote verification problem on SBX platforms, please to recompile Occlum using the following command:
 
@@ -29,13 +29,13 @@ make submodule && OCCLUM_RELEASE_BUILD=1 make install
 ```shell
 mkdir -p "$WORKSPACE"
 cd "$WORKSPACE"
-git clone https://github.com/alibaba/inclavare-containers
+git clone https://github.com/inclavare-containers/rats-tls
 ```
 
 2. Build and install RATS TLS
 
 ```shell
-cd inclavare-containers/rats-tls
+cd rats-tls
 cmake -DRATS_TLS_BUILD_MODE="occlum" -DBUILD_SAMPLES=on -H. -Bbuild
 make -C build install
 ```
@@ -119,7 +119,7 @@ docker build . -t occlum-app
 
 ## Integrate OCI Runtime rune with Docker
 
-Please refer to [guide](https://github.com/alibaba/inclavare-containers/tree/master/rune/libenclave/internal/runtime/pal/skeleton#integrate-oci-runtime-rune-with-docker) to integrate OCI runtime rune with docker.
+Please refer to [guide](https://github.com/inclavare-containers/inclavare-containers/tree/master/rune/libenclave/internal/runtime/pal/skeleton#integrate-oci-runtime-rune-with-docker) to integrate OCI runtime rune with docker.
 
 ## Running Occlum container image
 
@@ -163,8 +163,10 @@ occlum run /bin/rats-tls-client -l debug -m
 ## Run client based on sgxsdk
 
 ```shell
-cd "$WORKSPACE"/inclavare-containers/rats-tls
-make clean && make uninstall && make SGX=1 && make install
+cd "$WORKSPACE"/rats-tls
+make -C build clean && make -C build uninstall
+cmake -DRATS_TLS_BUILD_MODE="sgx" -DBUILD_SAMPLES=on -H. -Bbuild
+make -C build install
 cd /usr/share/rats-tls/samples
 ./rats-tls-client -a sgx_ecdsa -m -l debug
 ```
