@@ -23,13 +23,13 @@ Please follow the command to build RATS TLS from the latested source code on you
 ```shell
 mkdir -p "$WORKSPACE"
 cd "$WORKSPACE"
-git clone https://github.com/alibaba/inclavare-containers
+git clone https://github.com/inclavare-containers/rats-tls
 ```
 
 2. Build and install RATS TLS
 
 ```shell
-cd inclavare-containers/rats-tls
+cd rats-tls
 cmake -DBUILD_SAMPLES=on -H. -Bbuild
 make -C build install
 ```
@@ -157,7 +157,7 @@ In the early bootstrap of rats-tls, the debug message is mute by default. In ord
 
 ## Occlum LibOS
 
-Please refer to [this guide](docs/run_rats_tls_with_occlum.md) to run Rats Tls with [Occlum](https://github.com/occlum/occlum) and [rune](https://github.com/alibaba/inclavare-containers/tree/master/rune).
+Please refer to [this guide](docs/run_rats_tls_with_occlum.md) to run Rats Tls with [Occlum](https://github.com/occlum/occlum) and [rune](https://github.com/inclavare-containers/inclavare-containers/tree/master/rune).
 
 ## Non-SGX Enviroment
 
