@@ -31,9 +31,17 @@ tls_wrapper_err_t openssl_tls_init(tls_wrapper_ctx_t *ctx)
 		return -TLS_WRAPPER_ERR_NO_MEM;
 
 	if (ctx->conf_flags & RATS_TLS_CONF_FLAGS_SERVER)
-		ssl_ctx->sctx = SSL_CTX_new(TLSv1_server_method());
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		ssl_ctx->sctx = SSL_CTX_new(TLSv1_2_server_method());
+#else
+		ssl_ctx->sctx = SSL_CTX_new(TLS_server_method());
+#endif
 	else
-		ssl_ctx->sctx = SSL_CTX_new(TLSv1_client_method());
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		ssl_ctx->sctx = SSL_CTX_new(TLSv1_2_client_method());
+#else
+		ssl_ctx->sctx = SSL_CTX_new(TLS_client_method());
+#endif
 
 	if (!ssl_ctx->sctx) {
 		free(ssl_ctx);
