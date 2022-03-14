@@ -9,6 +9,8 @@
 
 #include "sgx_eid.h"
 
+#define LA_REPORT_OID "1.2.840.113741.1337.14"
+
 typedef struct {
 	sgx_enclave_id_t eid;
 } sgx_la_ctx_t;

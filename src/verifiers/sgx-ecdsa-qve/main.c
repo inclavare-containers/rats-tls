@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <rats-tls/verifier.h>
 #include <rats-tls/log.h>
+#include "sgx_ecdsa.h"
 
 extern enclave_verifier_err_t enclave_verifier_register(enclave_verifier_opts_t *opts);
 extern enclave_verifier_err_t sgx_ecdsa_verifier_pre_init(void);
@@ -21,6 +22,7 @@ static enclave_verifier_opts_t sgx_ecdsa_qve_opts = {
 	.api_version = ENCLAVE_VERIFIER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_VERIFIER_OPTS_FLAGS_DEFAULT,
 	.name = "sgx_ecdsa_qve",
+        .oid = ECDSA_QUOTE_OID,
 	.type = "sgx_ecdsa",
 	.priority = 53,
 	.pre_init = sgx_ecdsa_verifier_pre_init,

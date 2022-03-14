@@ -10,6 +10,7 @@
 #include <rats-tls/api.h>
 
 #define TDX_NUM_RTMRS 4
+#define TDX_QUOTE_OID "1.2.840.113741.1337.8"
 
 typedef struct {
 	uint8_t mrowner[SHA384_HASH_SIZE];

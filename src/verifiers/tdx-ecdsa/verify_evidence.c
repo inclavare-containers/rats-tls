@@ -8,7 +8,7 @@
 #include <rats-tls/log.h>
 #include <rats-tls/verifier.h>
 #include <sgx_dcap_quoteverify.h>
-#include "tdx-ecdsa.h"
+#include "tdx_ecdsa.h"
 
 enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_verifier_ctx_t *ctx,
 					     const char *name, attestation_evidence_t *evidence,
@@ -18,7 +18,7 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
 
 	/* Verify the hash value */
-	if (memcmp(hash, ((tdx_quote_t *)(evidence->tdx.quote))->report_body.report_data,
+	if (memcmp(hash, ((tdx_quote_t *)(evidence->evidence.report))->report_body.report_data,
 		   hash_len) != 0) {
 		RTLS_ERR("unmatched hash value in evidence.\n");
 		return -ENCLAVE_VERIFIER_ERR_INVALID;
@@ -45,7 +45,7 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 	time_t current_time = time(NULL);
 	sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
 	uint32_t collateral_expiration_status = 1;
-	dcap_ret = tdx_qv_verify_quote(evidence->tdx.quote, (uint32_t)(evidence->tdx.quote_len),
+	dcap_ret = tdx_qv_verify_quote(evidence->evidence.report, (uint32_t)(evidence->evidence.report_len),
 				       NULL, current_time, &collateral_expiration_status,
 				       &quote_verification_result, NULL, supplemental_data_size,
 				       p_supplemental_data);

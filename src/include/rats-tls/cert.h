@@ -7,6 +7,8 @@
 #ifndef _ENCLAVE_CERT_H
 #define _ENCLAVE_CERT_H
 
+#define OID_LENGTH 64
+
 typedef struct {
 	const unsigned char *organization;
 	const unsigned char *organization_unit;
@@ -25,33 +27,15 @@ typedef struct {
 } attestation_verification_report_t;
 
 typedef struct {
-	uint8_t quote[8192];
-	uint32_t quote_len;
-} ecdsa_attestation_evidence_t;
-
-typedef struct {
 	uint8_t report[8192];
 	uint32_t report_len;
-} la_attestation_evidence_t;
-
-typedef struct {
-	uint8_t quote[8192];
-	uint32_t quote_len;
-} tdx_attestation_evidence_t;
-
-typedef struct {
-	uint8_t report[8192];
-	uint32_t report_len;
-} snp_attestation_evidence_t;
+} tee_attestation_evidence_t;
 
 typedef struct {
 	char type[ENCLAVE_ATTESTER_TYPE_NAME_SIZE];
 	union {
 		attestation_verification_report_t epid;
-		ecdsa_attestation_evidence_t ecdsa;
-		la_attestation_evidence_t la;
-		tdx_attestation_evidence_t tdx;
-		snp_attestation_evidence_t snp;
+		tee_attestation_evidence_t evidence;
 	};
 } attestation_evidence_t;
 

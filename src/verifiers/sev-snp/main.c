@@ -7,6 +7,7 @@
 #include <rats-tls/log.h>
 #include <rats-tls/verifier.h>
 #include <stdio.h>
+#include "sev_snp.h"
 
 extern enclave_verifier_err_t enclave_verifier_register(enclave_verifier_opts_t *opts);
 extern enclave_verifier_err_t sev_snp_verifier_pre_init(void);
@@ -21,6 +22,7 @@ static enclave_verifier_opts_t sev_snp_verifier_opts = {
 	.api_version = ENCLAVE_VERIFIER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_VERIFIER_OPTS_FLAGS_SNP,
 	.name = "sev_snp",
+        .oid = SNP_REPORT_OID,
 	.priority = 42,
 	.pre_init = sev_snp_verifier_pre_init,
 	.init = sev_snp_verifier_init,

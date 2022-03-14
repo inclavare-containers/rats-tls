@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <rats-tls/attester.h>
 #include <rats-tls/log.h>
+#include "sgx_la.h"
 
 extern enclave_attester_err_t enclave_attester_register(enclave_attester_opts_t *);
 extern enclave_attester_err_t sgx_la_attester_pre_init(void);
@@ -22,6 +23,7 @@ static enclave_attester_opts_t sgx_la_attester_opts = {
 	.api_version = ENCLAVE_ATTESTER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_ATTESTER_OPTS_FLAGS_SGX_ENCLAVE,
 	.name = "sgx_la",
+        .oid = LA_REPORT_OID,
 	.priority = 15,
 	.pre_init = sgx_la_attester_pre_init,
 	.init = sgx_la_attester_init,

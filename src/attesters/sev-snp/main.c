@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <rats-tls/attester.h>
 #include <rats-tls/log.h>
+#include "sev_snp.h"
 
 extern enclave_attester_err_t enclave_attester_register(enclave_attester_opts_t *opts);
 extern enclave_attester_err_t sev_snp_attester_pre_init(void);
@@ -22,6 +23,7 @@ static enclave_attester_opts_t sev_snp_attester_opts = {
 	.api_version = ENCLAVE_ATTESTER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_ATTESTER_OPTS_FLAGS_SNP_GUEST,
 	.name = "sev_snp",
+        .oid = SNP_REPORT_OID,
 	.priority = 42,
 	.pre_init = sev_snp_attester_pre_init,
 	.init = sev_snp_attester_init,

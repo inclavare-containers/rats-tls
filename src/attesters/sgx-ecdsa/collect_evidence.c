@@ -115,7 +115,7 @@ enclave_attester_err_t sgx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 		return SGX_ECDSA_ATTESTER_ERR_CODE((int)qe3_ret);
 	}
 
-	sgx_status = ocall_qe_get_quote(&qe3_ret, &app_report, quote_size, evidence->ecdsa.quote);
+	sgx_status = ocall_qe_get_quote(&qe3_ret, &app_report, quote_size, evidence->evidence.report);
 	if (SGX_SUCCESS != sgx_status || ENCLAVE_ATTESTER_ERR_NONE != qe3_ret) {
 		RTLS_ERR("sgx_qe_get_quote(): 0x%04x, 0x%04x\n", sgx_status, qe3_ret);
 		return SGX_ECDSA_ATTESTER_ERR_CODE((int)qe3_ret);
@@ -128,7 +128,7 @@ enclave_attester_err_t sgx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 	 * format of quote as sgx_ecdsa.
 	 */
 	snprintf(evidence->type, sizeof(evidence->type), "%s", "sgx_ecdsa");
-	evidence->ecdsa.quote_len = quote_size;
+	evidence->evidence.report_len = quote_size;
 
 	return ENCLAVE_ATTESTER_ERR_NONE;
 }

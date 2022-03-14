@@ -21,6 +21,7 @@ static enclave_verifier_opts_t nullverifier_opts = {
 	.api_version = ENCLAVE_VERIFIER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_VERIFIER_OPTS_FLAGS_DEFAULT,
 	.name = "nullverifier",
+        .oid = "",
 	.priority = 0,
 	.pre_init = nullverifier_pre_init,
 	.init = nullverifier_init,

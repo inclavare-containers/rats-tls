@@ -216,7 +216,7 @@ enclave_verifier_err_t sev_snp_verify_evidence(enclave_verifier_ctx_t *ctx,
 	RTLS_DEBUG("ctx %p, evidence %p, hash %p\n", ctx, evidence, hash);
 
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
-	snp_attestation_report_t *snp_report = (snp_attestation_report_t *)(evidence->snp.report);
+	snp_attestation_report_t *snp_report = (snp_attestation_report_t *)(evidence->evidence.report);
 
 	/* Generate ARK, ASK and VCEK pem files */
 	int ret = generate_vcek_pem(snp_report->chip_id, sizeof(snp_report->chip_id),

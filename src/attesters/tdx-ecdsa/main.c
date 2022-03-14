@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <rats-tls/attester.h>
 #include <rats-tls/log.h>
+#include "tdx_ecdsa.h"
 
 extern enclave_attester_err_t enclave_attester_register(enclave_attester_opts_t *opts);
 extern enclave_attester_err_t tdx_ecdsa_attester_pre_init(void);
@@ -22,6 +23,7 @@ static enclave_attester_opts_t tdx_ecdsa_attester_opts = {
 	.api_version = ENCLAVE_ATTESTER_API_VERSION_DEFAULT,
 	.flags = ENCLAVE_ATTESTER_OPTS_FLAGS_TDX_GUEST,
 	.name = "tdx_ecdsa",
+        .oid = TDX_QUOTE_OID,
 	.priority = 42,
 	.pre_init = tdx_ecdsa_attester_pre_init,
 	.init = tdx_ecdsa_attester_init,

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "tdx-ecdsa.h"
+#include "tdx_ecdsa.h"
 #include <rats-tls/log.h>
 #include <rats-tls/verifier.h>
 

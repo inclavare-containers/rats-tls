@@ -12,10 +12,12 @@
 #include <rats-tls/tls_wrapper.h>
 #include <rats-tls/oid.h>
 #include <internal/core.h>
+#include <rats-tls/attester.h>
 #include "sgx_report.h"
 #include "sgx_quote_3.h"
 #include "per_thread.h"
 #include "openssl.h"
+#include "internal/attester.h"
 
 static int rtls_memcpy_s(void *dst, uint32_t dst_size, const void *src, uint32_t num_bytes)
 {
@@ -246,23 +248,25 @@ int openssl_extract_x509_extensions(X509 *crt, attestation_evidence_t *evidence)
 					      evidence->epid.ias_report_signature,
 					      &evidence->epid.ias_report_signature_len);
 		return rc;
-	} else if (!strcmp(evidence->type, "sgx_ecdsa")) {
-		evidence->ecdsa.quote_len = sizeof(evidence->ecdsa.quote);
-		return find_extension_from_cert(crt, ecdsa_quote_oid, evidence->ecdsa.quote,
-						&evidence->ecdsa.quote_len);
-	} else if (!strcmp(evidence->type, "tdx_ecdsa")) {
-		evidence->tdx.quote_len = sizeof(evidence->tdx.quote);
-		return find_extension_from_cert(crt, tdx_quote_oid, evidence->tdx.quote,
-						&evidence->tdx.quote_len);
-	} else if (!strcmp(evidence->type, "sgx_la")) {
-		evidence->la.report_len = sizeof(evidence->la.report);
-		return find_extension_from_cert(crt, la_report_oid, evidence->la.report,
-						&evidence->la.report_len);
-	} else if (!strcmp(evidence->type, "sev_snp")) {
-		evidence->snp.report_len = sizeof(evidence->snp.report);
-		return find_extension_from_cert(crt, snp_report_oid, evidence->snp.report,
-						&evidence->snp.report_len);
-	} else
+	}
+
+	enclave_attester_opts_t *opts = NULL;
+	unsigned int i = 0;
+	for (i = 0; i < registerd_enclave_attester_nums; ++i) {
+		opts = enclave_attesters_opts[i];
+		if (!opts) {
+			RTLS_DEBUG("registerd enclave_attesters_opts is invalid.\n");
+			break;
+		}
+
+		if (!strcmp(evidence->type, opts->name)) {
+			evidence->evidence.report_len = sizeof(evidence->evidence.report);
+			return find_extension_from_cert(crt, opts->oid, evidence->evidence.report,
+							&evidence->evidence.report_len);
+		}
+	}
+
+	if ((i == registerd_enclave_attester_nums) || (opts == NULL))
 		RTLS_WARN("Unhandled evidence type %s\n", evidence->type);
 
 	return SSL_SUCCESS;
@@ -331,16 +335,22 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 	 * extension and parse it into evidence
 	 */
 	attestation_evidence_t evidence;
+	enclave_attester_opts_t *opts = NULL;
+	unsigned int i = 0;
+	for (i = 0; i < registerd_enclave_attester_nums; ++i) {
+		opts = enclave_attesters_opts[i];
+		if (!opts) {
+			RTLS_DEBUG("registerd enclave_attesters_opts is null.\n");
+			break;
+		}
 
-	if (find_oid(cert, (const char *)ecdsa_quote_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "sgx_ecdsa");
-	else if (find_oid(cert, (const char *)tdx_quote_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "tdx_ecdsa");
-	else if (find_oid(cert, (const char *)la_report_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "sgx_la");
-	else if (find_oid(cert, (const char *)snp_report_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "sev_snp");
-	else
+		if (find_oid(cert, (const char *)opts->oid) == SSL_SUCCESS) {
+			snprintf(evidence.type, sizeof(evidence.type), "%s", opts->name);
+			break;
+		}
+	}
+
+	if (i == registerd_enclave_attester_nums || opts == NULL)
 		snprintf(evidence.type, sizeof(evidence.type), "%s", "nullverifier");
 
 	int rc = openssl_extract_x509_extensions(cert, &evidence);
@@ -358,7 +368,7 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 
 	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
 		rtls_evidence_t ev;
-		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
+		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.evidence.report;
 
 		ev.sgx.mr_enclave = (char *)quote3->report_body.mr_enclave.m;
 		ev.sgx.mr_signer = quote3->report_body.mr_signer.m;

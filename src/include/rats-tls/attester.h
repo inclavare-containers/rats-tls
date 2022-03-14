@@ -32,6 +32,7 @@ typedef struct {
 	uint8_t api_version;
 	unsigned long flags;
 	const char name[ENCLAVE_ATTESTER_TYPE_NAME_SIZE];
+        const char oid[OID_LENGTH];
 	/* Different attester instances may generate the same format of attester,
 	 * e.g, sgx_ecdsa and sgx_ecdsa_qve both generate the format "sgx_ecdsa".
 	 * By default, the value of type equals to name.
@@ -42,6 +43,7 @@ typedef struct {
 	/* Optional */
 	enclave_attester_err_t (*pre_init)(void);
 	enclave_attester_err_t (*init)(enclave_attester_ctx_t *ctx, rats_tls_cert_algo_t algo);
+        enclave_attester_err_t (*tee_aware)(void);
 	enclave_attester_err_t (*extend_cert)(enclave_attester_ctx_t *ctx,
 					      const rats_tls_cert_info_t *cert_info);
 	enclave_attester_err_t (*collect_evidence)(enclave_attester_ctx_t *ctx,

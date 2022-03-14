@@ -9,6 +9,8 @@
 
 #include <sgx_urts.h>
 
+#define ECDSA_QUOTE_OID "1.2.840.113741.1337.6"
+
 typedef struct {
 	sgx_enclave_id_t eid;
 } sgx_ecdsa_ctx_t;
