@@ -170,6 +170,11 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 		if (!x509_extension_add(cert, sev_report_oid, sev->report, sev->report_len))
 			goto err;
+	} else if (!strcmp(cert_info->evidence.type, "csv")) {
+		csv_attestation_evidence_t *csv = &cert_info->evidence.csv;
+
+		if (!x509_extension_add(cert, csv_report_oid, csv->report, csv->report_len))
+			goto err;
 	}
 
 	ret = -CRYPTO_WRAPPER_ERR_CERT;

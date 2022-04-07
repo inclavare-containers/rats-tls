@@ -50,6 +50,11 @@ typedef struct {
 } sev_attestation_evidence_t;
 
 typedef struct {
+	uint8_t report[8192];
+	uint32_t report_len;
+} csv_attestation_evidence_t;
+
+typedef struct {
 	char type[ENCLAVE_ATTESTER_TYPE_NAME_SIZE];
 	union {
 		attestation_verification_report_t epid;
@@ -58,6 +63,7 @@ typedef struct {
 		tdx_attestation_evidence_t tdx;
 		snp_attestation_evidence_t snp;
 		sev_attestation_evidence_t sev;
+		csv_attestation_evidence_t csv;
 	};
 } attestation_evidence_t;
 

@@ -15,5 +15,6 @@
 #define tdx_quote_oid		 "1.2.840.113741.1337.8"
 #define snp_report_oid		 "1.2.840.113741.1337.20"
 #define sev_report_oid		 "1.2.840.113741.1337.22"
+#define csv_report_oid		 "1.2.840.113741.1337.24"
 
 #endif
