@@ -235,3 +235,15 @@ bool is_sevguest_supported(void)
 	return false;
 #endif
 }
+
+/* check whether running in HYGON CSV guest */
+bool is_csvguest_supported(void)
+{
+#ifndef SGX
+	uint64_t data = read_msr(SEV_STATUS_MSR);
+
+	return !!(data & ((1 << SEV_FLAG) | (1 << SEV_ES_FLAG)));
+#else
+	return false;
+#endif
+}
