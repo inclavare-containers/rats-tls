@@ -13,6 +13,7 @@ endif()
 if(HOST)
     add_subdirectory(sev-snp)
     add_subdirectory(sev)
+    add_subdirectory(csv)
 endif()
 
 if(TDX)

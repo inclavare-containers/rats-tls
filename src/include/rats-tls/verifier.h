@@ -25,6 +25,7 @@
 #define ENCLAVE_VERIFIER_OPTS_FLAGS_TDX		 (1 << 2)
 #define ENCLAVE_VERIFIER_OPTS_FLAGS_SNP		 (1 << 3)
 #define ENCLAVE_VERIFIER_OPTS_FLAGS_SEV		 (1 << 4)
+#define ENCLAVE_VERIFIER_OPTS_FLAGS_CSV		 (1 << 5)
 
 typedef struct enclave_verifier_ctx enclave_verifier_ctx_t;
 
