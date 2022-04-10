@@ -5,6 +5,7 @@ if(HOST)
     if(EXISTS "/usr/include/linux/sev-guest.h")
         add_subdirectory(sev-snp)
     endif()
+    add_subdirectory(csv)
 endif()
 
 if(TDX)
