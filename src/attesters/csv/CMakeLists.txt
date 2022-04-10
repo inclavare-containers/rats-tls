@@ -1,5 +1,5 @@
 # Project name
-project(verifier_sev)
+project(attester_csv)
 
 # Set include directory
 set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../include
@@ -16,13 +16,11 @@ link_directories(${LIBRARY_DIRS})
 
 # Set source file
 set(SOURCES cleanup.c
+            collect_evidence.c
+            csv_utils.c
             init.c
-            ../sev-snp/utils.c
-            sevcert.c
-            amdcert.c
             main.c
             pre_init.c
-            verify_evidence.c
             )
 
 # Generate library
@@ -32,4 +30,4 @@ set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${VERSION} SOVERSION ${
 
 # Install library
 install(TARGETS ${PROJECT_NAME}
-	DESTINATION ${RATS_TLS_INSTALL_LIBV_PATH})
+        DESTINATION ${RATS_TLS_INSTALL_LIBA_PATH})

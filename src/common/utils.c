@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdio.h>
-#include <stddef.h>
 #include <rats-tls/log.h>
-#include "../sev-snp/utils.c"
 
 int read_file(const char *filename, void *buffer, size_t len)
 {
