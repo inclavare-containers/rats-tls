@@ -65,6 +65,7 @@ Right now, RATS TLS supports the following instance types:
 | ----------- | --------------------- | -------------------------- | -------------------------- | ----------------------- |
 | 0         | nulltls               | nullattester               | nullverifier               | nullcrypto              |
 | 15        | openssl               | sgx\_la                    | sgx\_la                    | openssl                 |
+| 20        | openssl               | csv                        | csv                        | openssl                 |
 | 35        | openssl               | sev                        | sev                        | openssl                 |
 | 42        | openssl               | sev\_snp                   | sev\_snp                   | openssl                 |
 | 42        | openssl               | tdx\_ecdsa                 | tdx\_ecdsa                 | openssl                 |
@@ -99,6 +100,10 @@ Note that if you want to run SEV-SNP remote attestation, please refer to [link](
 
 - Kernel support SEV(-ES) runtime attestation, please manually apply [these patches](https://github.com/haosanzi/attestation-evidence-broker/tree/master/hack/README.md).
 - Start the [attestation evidence broker](https://github.com/haosanzi/attestation-evidence-broker/blob/master/README.md) service in host.
+
+**Notice: special prerequisites for CSV(2) remote attestation in software capability.**
+
+- Kernel support CSV(2) runtime attestation, please manually apply [theses patches](https://gitee.com/anolis/cloud-kernel/pulls/108)
 
 ## Specify the instance type
 
