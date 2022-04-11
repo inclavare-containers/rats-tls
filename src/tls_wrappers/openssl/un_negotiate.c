@@ -12,8 +12,10 @@
 #include <rats-tls/tls_wrapper.h>
 #include <rats-tls/oid.h>
 #include <internal/core.h>
+#ifdef SGX
 #include "sgx_report.h"
 #include "sgx_quote_3.h"
+#endif
 #include "per_thread.h"
 #include "openssl.h"
 
@@ -369,6 +371,7 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 	}
 
 	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
+#ifdef SGX
 		rtls_evidence_t ev;
 		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
 
@@ -388,6 +391,10 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 				return 0;
 			}
 		}
+#else
+		RTLS_ERR("Need build with RATS_TLS_BUILD_MODE=\"sgx\"\n");
+		return 0;
+#endif
 	}
 
 	return SSL_SUCCESS;
