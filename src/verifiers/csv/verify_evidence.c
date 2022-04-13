@@ -28,9 +28,16 @@ static enclave_verifier_err_t verify_cert_chain(csv_evidence *evidence)
 	 * to check whether PEK and ChipId have been tampered with.
 	 */
 	hash_block_t hmac;
+	uint8_t mnonce[CSV_ATTESTATION_MNONCE_SIZE] = { 0, };
+	int i, j;
+
+	/* Retrieve mnonce which is the key of sm3-hmac */
+	j = CSV_ATTESTATION_MNONCE_SIZE / sizeof(uint32_t);
+	for (i = 0; i < j; i++)
+		((uint32_t *)mnonce)[i] = ((uint32_t *)report->mnonce)[i] ^ report->anonce;
 
 	memset((void *)&hmac, 0, sizeof(hash_block_t));
-	if (sm3_hmac((const char *)report->mnonce, CSV_ATTESTATION_MNONCE_SIZE,
+	if (sm3_hmac((const char *)mnonce, CSV_ATTESTATION_MNONCE_SIZE,
 		     (const unsigned char *)report + CSV_ATTESTATION_REPORT_HMAC_DATA_OFFSET,
 		     CSV_ATTESTATION_REPORT_HMAC_DATA_SIZE, (unsigned char *)&hmac, sizeof(hash_block_t))) {
 		RTLS_ERR("failed to compute sm3 hmac\n");
@@ -41,6 +48,12 @@ static enclave_verifier_err_t verify_cert_chain(csv_evidence *evidence)
 		return err;
 	}
 	RTLS_DEBUG("check PEK and ChipId successfully\n");
+
+	/* Retrieve PEK cert and ChipId */
+	j = (offsetof(csv_attestation_report, reserved1)
+		- offsetof(csv_attestation_report, pek_cert)) / sizeof(uint32_t);
+	for (i = 0; i < j; i++)
+		((uint32_t *)report->pek_cert)[i] ^= report->anonce;
 
 	/* Verify HSK cert with HRK */
 	if (verify_hsk_cert(hsk_cert) != 1) {
@@ -90,7 +103,15 @@ enclave_verifier_err_t csv_verify_evidence(enclave_verifier_ctx_t *ctx,
 	csv_evidence *c_evidence = (csv_evidence *)(&evidence->csv.report);
 	csv_attestation_report *attestation_report = &c_evidence->attestation_report;
 
-	if (memcmp(hash, attestation_report->user_data,
+	/* Retrieve user_data from attestation report */
+	uint8_t user_data[CSV_ATTESTATION_USER_DATA_SIZE] = { 0, };
+	int i;
+
+	for (i = 0; i < sizeof(user_data) / sizeof(uint32_t); i++)
+		((uint32_t *)user_data)[i] =
+			((uint32_t *)attestation_report->user_data)[i] ^ attestation_report->anonce;
+
+	if (memcmp(hash, user_data,
 		   hash_len <= CSV_ATTESTATION_USER_DATA_SIZE ? hash_len : CSV_ATTESTATION_USER_DATA_SIZE)) {
 		RTLS_ERR("unmatched hash value in evidence\n");
 		return -ENCLAVE_VERIFIER_ERR_INVALID;
