@@ -204,8 +204,17 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 	csv_evidence *evidence_buffer = (csv_evidence *)evidence->report;
 
 	assert(sizeof(csv_evidence) <= sizeof(evidence->report));
-	if (load_hsk_cek_cert(evidence_buffer->hsk_cek_cert,
-			      (const char *)evidence_buffer->attestation_report.chip_id)) {
+
+        /* Retreive ChipId from attestation report */
+	csv_attestation_report *attestation_report = &evidence_buffer->attestation_report;
+	uint8_t chip_id[CSV_ATTESTATION_CHIP_SN_SIZE] = { 0, };
+	int i;
+
+	for (i = 0; i < sizeof(chip_id) / sizeof(uint32_t); i++)
+		((uint32_t *)chip_id)[i] =
+			((uint32_t *)attestation_report->chip_id)[i] ^ attestation_report->anonce;
+
+	if (load_hsk_cek_cert(evidence_buffer->hsk_cek_cert, (const char *)chip_id)) {
 		RTLS_ERR("failed to load HSK and CEK cert\n");
 		goto err_munmap;
 	}

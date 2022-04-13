@@ -35,7 +35,7 @@ typedef struct __attribute__((__packed__)) csv_attestation_report_t {
 	uint32_t policy;
 	uint32_t sig_usage;
 	uint32_t sig_algo;
-	uint32_t reserved1;
+	uint32_t anonce;
 	union {
 		uint8_t sig1[72 * 2];
 		struct {
@@ -45,9 +45,9 @@ typedef struct __attribute__((__packed__)) csv_attestation_report_t {
 	};
 	uint8_t pek_cert[HYGON_CSV_CERT_SIZE];
 	uint8_t chip_id[CSV_ATTESTATION_CHIP_SN_SIZE];
-	uint8_t reserved2[32];
+	uint8_t reserved1[32];
 	hash_block_t hmac;
-	uint8_t reserved3[1548];	// Padding to a page size
+	uint8_t reserved2[1548];	// Padding to a page size
 } csv_attestation_report;
 
 #include <stddef.h>
