@@ -117,7 +117,7 @@ static int load_hsk_cek_cert(uint8_t *hsk_cek_cert, const char *chip_id)
 }
 
 #define CSV_GUEST_MAP_LEN	 4096
-#define KVM_HC_VM_ATTESTATION	 12	/* Specific to HYGON CPU */
+#define KVM_HC_VM_ATTESTATION	 100	/* Specific to HYGON CPU */
 
 typedef struct {
 	unsigned char data[CSV_ATTESTATION_USER_DATA_SIZE];
