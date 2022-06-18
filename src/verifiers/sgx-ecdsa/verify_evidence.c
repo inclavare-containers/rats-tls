@@ -15,6 +15,7 @@
 #include "sgx_ecdsa.h"
 #ifdef SGX
 #include <rtls_t.h>
+#include <sgx_dcap_ql_wrapper.h>
 #elif defined(OCCLUM)
 #include <unistd.h>
 #include <sys/stat.h>
@@ -24,7 +25,6 @@
 #include "quote_verification.h"
 #else
 #include <sgx_dcap_quoteverify.h>
-#include <sgx_dcap_ql_wrapper.h>
 // clang-format on
 
 enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_verifier_ctx_t *ctx,
