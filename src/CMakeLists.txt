@@ -2,7 +2,8 @@
 set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
                  ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls
                  ${CMAKE_CURRENT_SOURCE_DIR}/include/internal
-		 /usr/include
+                 /opt/intel/sgxsdk/include
+                 /usr/include
                  )
 if(SGX)
     list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include/edl
