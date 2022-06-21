@@ -14,6 +14,10 @@
 #include <internal/core.h>
 #ifdef SGX
 #include "sgx_report.h"
+#endif
+#ifdef TDX
+#include "sgx_quote_4.h"
+#else
 #include "sgx_quote_3.h"
 #endif
 #include "per_thread.h"
@@ -370,9 +374,9 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		return 0;
 	}
 
+	rtls_evidence_t ev;
 	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
-#ifdef SGX
-		rtls_evidence_t ev;
+#ifndef TDX
 		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
 
 		ev.sgx.mr_enclave = (char *)quote3->report_body.mr_enclave.m;
@@ -383,18 +387,28 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		ev.type = SGX_ECDSA;
 		ev.quote = (char *)quote3;
 		ev.quote_size = sizeof(sgx_quote3_t);
-
-		if (tls_ctx->rtls_handle->user_callback) {
-			rc = tls_ctx->rtls_handle->user_callback(&ev);
-			if (!rc) {
-				RTLS_ERR("failed to verify user callback %d\n", rc);
-				return 0;
-			}
-		}
-#else
-		RTLS_ERR("Need build with RATS_TLS_BUILD_MODE=\"sgx\"\n");
-		return 0;
 #endif
+	} else if (!strncmp(evidence.type, "tdx_ecdsa", sizeof(evidence.type))) {
+		sgx_quote4_t *quote4 = (sgx_quote4_t *)evidence.tdx.quote;
+		ev.tdx.mrseam = (uint8_t *)&(quote4->report_body.mr_seam);
+		ev.tdx.mrseamsigner = (uint8_t *)&(quote4->report_body.mrsigner_seam);
+		ev.tdx.tcb_svns = (uint8_t *)&(quote4->report_body.tee_tcb_svn);
+		ev.tdx.mrtd = (uint8_t *)&(quote4->report_body.mr_td);
+		ev.tdx.rtmr = (char *)quote4->report_body.rt_mr;
+		ev.type = TDX_ECDSA;
+		ev.quote = (char *)quote4;
+		ev.tdx.tdel_info = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ]);
+		ev.tdx.tdel_info_sz = TDEL_INFO_SZ;
+		ev.tdx.tdel_data = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]);
+		ev.tdx.tdel_data_sz = TDEL_DATA_SZ;
+	}
+
+	if (tls_ctx->rtls_handle->user_callback) {
+		rc = tls_ctx->rtls_handle->user_callback(&ev);
+		if (!rc) {
+			RTLS_ERR("failed to verify user callback %d\n", rc);
+			return 0;
+		}
 	}
 
 	return SSL_SUCCESS;

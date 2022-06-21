@@ -6,23 +6,28 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <assert.h>
 #include <rats-tls/log.h>
 #include <rats-tls/attester.h>
 #include <stddef.h>
+#include <stdio.h>
 #include "../../verifiers/tdx-ecdsa/tdx-ecdsa.h"
 
 #define VSOCK
 
 // clang-format off
 #ifdef VSOCK
-  #include <stdlib.h>
-  #include <stdio.h>
-  #include <stdint.h>
-  #include <time.h>
-  #include <tdx_attest.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <time.h>
+#include <tdx_attest.h>
 #endif
 // clang-format on
+
+#define TDEL_INFO    "/sys/firmware/acpi/tables/TDEL"
+#define TDEL_DATA    "/sys/firmware/acpi/tables/data/TDEL"
 
 static int tdx_get_report(const tdx_report_data_t *report_data, tdx_report_t *tdx_report)
 {
@@ -33,6 +38,58 @@ static int tdx_get_report(const tdx_report_data_t *report_data, tdx_report_t *td
 	}
 
 	return 0;
+}
+
+enclave_attester_err_t tdx_get_tdel_info(enclave_attester_ctx_t *ctx,
+					 attestation_evidence_t *evidence)
+{
+	int fd = 0;
+	char tdel_info[TDEL_INFO_SZ];
+
+	RTLS_DEBUG("ctx %p, evidence %p\n", ctx, evidence);
+	if (fd = open(TDEL_INFO, O_RDONLY) < 0) {
+		RTLS_ERR("failed to open TDEL info device\n");
+		return -ENCLAVE_ATTESTER_ERR_INVALID;
+	}
+
+	int tdel_info_sz = read(fd, tdel_info, TDEL_INFO_SZ);
+	if (tdel_info_sz != TDEL_INFO_SZ) {
+		RTLS_ERR("failed to read tdinfo\n");
+		close(fd);
+		return -ENCLAVE_ATTESTER_ERR_INVALID;
+	}
+
+	memcpy(&(evidence->tdx.quote[TDX_ECDSA_QUOTE_SZ]), tdel_info, TDEL_INFO_SZ);
+
+	close(fd);
+
+	return ENCLAVE_ATTESTER_ERR_NONE;
+}
+
+enclave_attester_err_t tdx_get_tdel_data(enclave_attester_ctx_t *ctx,
+					 attestation_evidence_t *evidence)
+{
+	int fd = 0;
+	char tdel_data[TDEL_DATA_SZ];
+
+	RTLS_DEBUG("ctx %p, evidence %p\n", ctx, evidence);
+	if (fd = open(TDEL_DATA, O_RDONLY) < 0) {
+		RTLS_ERR("failed to open TDEL info device\n");
+		return -ENCLAVE_ATTESTER_ERR_INVALID;
+	}
+
+	int tdel_data_sz = read(fd, tdel_data, TDEL_DATA_SZ);
+	if (tdel_data_sz != TDEL_DATA_SZ) {
+		RTLS_ERR("failed to open TDEL data\n");
+		close(fd);
+		return -ENCLAVE_ATTESTER_ERR_INVALID;
+	}
+
+	memcpy(&(evidence->tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]), tdel_data, tdel_data_sz);
+
+	close(fd);
+
+	return ENCLAVE_ATTESTER_ERR_NONE;
 }
 
 static int tdx_gen_quote(uint8_t *hash, uint8_t *quote_buf, uint32_t *quote_size)
@@ -88,13 +145,18 @@ enclave_attester_err_t tdx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 {
 	RTLS_DEBUG("ctx %p, evidence %p, algo %d, hash %p\n", ctx, evidence, algo, hash);
 
-	evidence->tdx.quote_len = sizeof(evidence->tdx.quote);
 	if (tdx_gen_quote(hash, evidence->tdx.quote, &evidence->tdx.quote_len)) {
 		RTLS_ERR("failed to generate quote\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
 
 	RTLS_DEBUG("Succeed to generate the quote!\n");
+
+	if (tdx_get_tdel_info(ctx, evidence) != ENCLAVE_ATTESTER_ERR_NONE)
+		return -ENCLAVE_ATTESTER_ERR_INVALID;
+
+	if (tdx_get_tdel_data(ctx, evidence) != ENCLAVE_ATTESTER_ERR_NONE)
+		return -ENCLAVE_ATTESTER_ERR_INVALID;
 
 	/* Essentially speaking, QGS generates the same
 	 * format of quote as sgx_ecdsa.
