@@ -23,18 +23,12 @@ if(OCCLUM)
 endif()
 
 # Set source file
-if(SGX)
-    set(SOURCES init.c
-                main.c
-                )
-else()
-    set(SOURCES cleanup.c
-                init.c
-                main.c
-                pre_init.c
-                verify_evidence.c
-                )
-endif()
+set(SOURCES cleanup.c
+            init.c
+            main.c
+            pre_init.c
+            verify_evidence.c
+            )
 
 # Generate library
 if(SGX)

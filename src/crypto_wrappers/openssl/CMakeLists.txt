@@ -6,9 +6,11 @@ include_directories(${INCLUDE_DIRS})
 
 # Set dependency library directory
 set(LIBRARY_DIRS ${CMAKE_BINARY_DIR}/src
-                 ${CMAKE_BINARY_DIR}/src/external/intel-sgx-ssl/lib
                  ${RATS_TLS_INSTALL_LIB_PATH}
                  )
+if(SGX)
+    list(APPEND LIBRARY_DIRS ${CMAKE_BINARY_DIR}/src/external/intel-sgx-ssl/lib)
+endif()
 link_directories(${LIBRARY_DIRS})
 
 # Set source file
