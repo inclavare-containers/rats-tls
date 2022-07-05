@@ -376,7 +376,6 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 
 	rtls_evidence_t ev;
 	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
-#ifndef TDX
 		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
 
 		ev.sgx.mr_enclave = (char *)quote3->report_body.mr_enclave.m;
@@ -387,8 +386,9 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		ev.type = SGX_ECDSA;
 		ev.quote = (char *)quote3;
 		ev.quote_size = sizeof(sgx_quote3_t);
-#endif
-	} else if (!strncmp(evidence.type, "tdx_ecdsa", sizeof(evidence.type))) {
+	}
+#ifdef TDX
+	else if (!strncmp(evidence.type, "tdx_ecdsa", sizeof(evidence.type))) {
 		sgx_quote4_t *quote4 = (sgx_quote4_t *)evidence.tdx.quote;
 		ev.tdx.mrseam = (uint8_t *)&(quote4->report_body.mr_seam);
 		ev.tdx.mrseamsigner = (uint8_t *)&(quote4->report_body.mrsigner_seam);
@@ -402,6 +402,7 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		ev.tdx.tdel_data = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]);
 		ev.tdx.tdel_data_sz = TDEL_DATA_SZ;
 	}
+#endif
 
 	if (tls_ctx->rtls_handle->user_callback) {
 		rc = tls_ctx->rtls_handle->user_callback(&ev);
