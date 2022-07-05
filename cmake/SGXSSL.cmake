@@ -81,9 +81,8 @@ set(SGXSSL_URL           https://github.com/intel/intel-sgx-ssl.git)
 
 ExternalProject_Add(${PROJECT_NAME}
         GIT_REPOSITORY          ${SGXSSL_URL}
-        GIT_TAG                 master
+        GIT_TAG                 1e51eacc0de8cdd541fad05487e1db93c0c56540
         PREFIX                  ${INTEL_SGXSSL_ROOT}
-        GIT_SHALLOW             true
         PATCH_COMMAND           ${CMAKE_COMMAND} -P ${_patch_cmake}
         CONFIGURE_COMMAND       ${CMAKE_COMMAND} -P ${_configure_cmake}
         BUILD_COMMAND           ${CMAKE_COMMAND} -P ${_make_cmake}
