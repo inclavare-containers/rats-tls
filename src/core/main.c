@@ -26,11 +26,11 @@ rats_tls_log_level_t global_log_level = RATS_TLS_LOG_LEVEL_DEFAULT;
 
 #ifdef SGX
 // clang-format off
-#define INSTANCE_NUM  8
+#define INSTANCE_NUM  7
 #define INSTANCE_NAME 32
 // clang-format off
 char enclave_instance_name[INSTANCE_NUM][INSTANCE_NAME] = { "nullcrypto",    "nullattester",
-							    "nullverifier",  "sgx_ecdsa",
+							    "nullverifier",
 							    "sgx_ecdsa_qve", "sgx_la",
 							    "nulltls",	     "openssl" };
 void librats_tls_init(void)

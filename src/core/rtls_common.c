@@ -27,12 +27,13 @@ extern void libcrypto_wrapper_openssl_init(void);
 extern void libattester_null_init(void);
 extern void libverifier_null_init(void);
 extern void libattester_sgx_ecdsa_init(void);
-extern void libverifier_sgx_ecdsa_init(void);
 extern void libverifier_sgx_ecdsa_qve_init(void);
 extern void libattester_sgx_la_init(void);
 extern void libverifier_sgx_la_init(void);
 extern void libtls_wrapper_nulltls_init(void);
 extern void libtls_wrapper_openssl_init(void);
+#else
+extern void libverifier_sgx_ecdsa_init(void);
 #endif
 //clang-format on
 
@@ -99,6 +100,7 @@ rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) cons
                 err = rtls_enclave_verifier_post_init(name, NULL);
                 if (err != RATS_TLS_ERR_NONE)
                         return err;
+#ifndef SGX
         } else if (!strcmp(name, "sgx_ecdsa")) {
 		libattester_sgx_ecdsa_init();
 		libverifier_sgx_ecdsa_init();
@@ -108,6 +110,7 @@ rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) cons
                 err = rtls_enclave_verifier_post_init(name, NULL);
                 if (err != RATS_TLS_ERR_NONE)
                         return err;
+#endif
 	} else if (!strcmp(name, "sgx_ecdsa_qve")) {
 		libverifier_sgx_ecdsa_qve_init();
                 err = rtls_enclave_verifier_post_init(name, NULL);
