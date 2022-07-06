@@ -11,3 +11,6 @@ src/external/sgx-ssl/*.cmake
 src/external/sgx-ssl/*.sh
 dist/rpm/rats_tls.spec
 dist/deb/debian/changelog
+src/attesters/sev/ttrpc/Cargo.lock
+src/attesters/sev/ttrpc/src/protocols/sev/aeb.rs
+src/attesters/sev/ttrpc/src/protocols/sev/aeb_ttrpc.rs
