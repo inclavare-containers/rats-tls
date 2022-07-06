@@ -100,17 +100,11 @@ rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) cons
                 err = rtls_enclave_verifier_post_init(name, NULL);
                 if (err != RATS_TLS_ERR_NONE)
                         return err;
-#ifndef SGX
         } else if (!strcmp(name, "sgx_ecdsa")) {
 		libattester_sgx_ecdsa_init();
-		libverifier_sgx_ecdsa_init();
                 err = rtls_enclave_attester_post_init(name, NULL);
                 if (err != RATS_TLS_ERR_NONE)
                         return err;
-                err = rtls_enclave_verifier_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
-#endif
 	} else if (!strcmp(name, "sgx_ecdsa_qve")) {
 		libverifier_sgx_ecdsa_qve_init();
                 err = rtls_enclave_verifier_post_init(name, NULL);
