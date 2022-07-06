@@ -98,8 +98,8 @@ static int load_hsk_cek_cert(uint8_t *hsk_cek_cert, const char *chip_id)
 	char cmdline_str[200] = {
 		0,
 	};
-	int count = snprintf(cmdline_str, sizeof(cmdline_str), "wget -O %s %s%s",
-			     filename, HYGON_KDS_SERVER_SITE, chip_id);
+	int count = snprintf(cmdline_str, sizeof(cmdline_str), "wget -O %s %s%s", filename,
+			     HYGON_KDS_SERVER_SITE, chip_id);
 	cmdline_str[count] = '\0';
 
 	if (system(cmdline_str) != 0) {
@@ -116,8 +116,8 @@ static int load_hsk_cek_cert(uint8_t *hsk_cek_cert, const char *chip_id)
 	return 0;
 }
 
-#define CSV_GUEST_MAP_LEN	 4096
-#define KVM_HC_VM_ATTESTATION	 100	/* Specific to HYGON CPU */
+#define CSV_GUEST_MAP_LEN     4096
+#define KVM_HC_VM_ATTESTATION 100 /* Specific to HYGON CPU */
 
 typedef struct {
 	unsigned char data[CSV_ATTESTATION_USER_DATA_SIZE];
@@ -174,9 +174,12 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 		   (unsigned long)user_data + CSV_GUEST_MAP_LEN);
 	memset((void *)user_data, 0, CSV_GUEST_MAP_LEN);
 
+	// clang-fomat off
 	/* Prepare user defined data (challenge and mnonce) */
 	memcpy(user_data->data, hash,
 	       hash_len <= CSV_ATTESTATION_USER_DATA_SIZE ? hash_len : CSV_ATTESTATION_USER_DATA_SIZE);
+	// clang-format on
+
 	gen_random_bytes(user_data->mnonce, CSV_ATTESTATION_MNONCE_SIZE);
 
 	/* Prepare hash of user defined data */
@@ -192,7 +195,8 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 	user_data_pa = (uint64_t)gva_to_gpa(user_data);
 	ret = do_hypercall(KVM_HC_VM_ATTESTATION, (unsigned long)user_data_pa, CSV_GUEST_MAP_LEN);
 	if (ret) {
-		RTLS_ERR("failed to save attestation report to %#016lx (ret:%d)\n", ret, user_data_pa);
+		RTLS_ERR("failed to save attestation report to %#016lx (ret:%d)\n", ret,
+			 user_data_pa);
 		goto err_munmap;
 	}
 
@@ -205,14 +209,16 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 
 	assert(sizeof(csv_evidence) <= sizeof(evidence->report));
 
-        /* Retreive ChipId from attestation report */
+	/* Retreive ChipId from attestation report */
 	csv_attestation_report *attestation_report = &evidence_buffer->attestation_report;
-	uint8_t chip_id[CSV_ATTESTATION_CHIP_SN_SIZE] = { 0, };
+	uint8_t chip_id[CSV_ATTESTATION_CHIP_SN_SIZE] = {
+		0,
+	};
 	int i;
 
 	for (i = 0; i < sizeof(chip_id) / sizeof(uint32_t); i++)
-		((uint32_t *)chip_id)[i] =
-			((uint32_t *)attestation_report->chip_id)[i] ^ attestation_report->anonce;
+		((uint32_t *)chip_id)[i] = ((uint32_t *)attestation_report->chip_id)[i] ^
+					   attestation_report->anonce;
 
 	if (load_hsk_cek_cert(evidence_buffer->hsk_cek_cert, (const char *)chip_id)) {
 		RTLS_ERR("failed to load HSK and CEK cert\n");

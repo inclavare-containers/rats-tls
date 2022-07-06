@@ -28,7 +28,7 @@ rats_tls_log_level_t global_log_level = RATS_TLS_LOG_LEVEL_DEFAULT;
 // clang-format off
 #define INSTANCE_NUM  8
 #define INSTANCE_NAME 32
-// clang-format off
+// clang-format on
 char enclave_instance_name[INSTANCE_NUM][INSTANCE_NAME] = { "nullcrypto",    "nullattester",
 							    "nullverifier",  "sgx_ecdsa",
 							    "sgx_ecdsa_qve", "sgx_la",

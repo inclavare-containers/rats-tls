@@ -7,24 +7,24 @@
 #ifndef _ENCLAVE_CSV_H_
 #define _ENCLAVE_CSV_H_
 
-#define HYGON_KDS_SERVER_SITE		 "https://cert.hygon.cn/hsk_cek?snumber="
-#define HYGON_HSK_CEK_CERT_FILENAME	 "hsk_cek.cert"
+#define HYGON_KDS_SERVER_SITE	    "https://cert.hygon.cn/hsk_cek?snumber="
+#define HYGON_HSK_CEK_CERT_FILENAME "hsk_cek.cert"
 
-#define HYGON_CERT_SIZE			 832
-#define HYGON_CSV_CERT_SIZE		 2084
-#define HYGON_HSK_CEK_CERT_SIZE		 (HYGON_CERT_SIZE + HYGON_CSV_CERT_SIZE)
+#define HYGON_CERT_SIZE		832
+#define HYGON_CSV_CERT_SIZE	2084
+#define HYGON_HSK_CEK_CERT_SIZE (HYGON_CERT_SIZE + HYGON_CSV_CERT_SIZE)
 
 /* CSV attestation report */
-#define HASH_BLOCK_SIZE	 32
+#define HASH_BLOCK_SIZE 32
 typedef struct {
 	uint8_t block[HASH_BLOCK_SIZE];
 } hash_block_t;
 
-#define CSV_VM_ID_SIZE			 16
-#define CSV_VM_VERSION_SIZE		 16
-#define CSV_ATTESTATION_USER_DATA_SIZE	 64
-#define CSV_ATTESTATION_MNONCE_SIZE	 16
-#define CSV_ATTESTATION_CHIP_SN_SIZE	 64
+#define CSV_VM_ID_SIZE		       16
+#define CSV_VM_VERSION_SIZE	       16
+#define CSV_ATTESTATION_USER_DATA_SIZE 64
+#define CSV_ATTESTATION_MNONCE_SIZE    16
+#define CSV_ATTESTATION_CHIP_SN_SIZE   64
 typedef struct __attribute__((__packed__)) csv_attestation_report_t {
 	hash_block_t user_pubkey_digest;
 	uint8_t vm_id[CSV_VM_ID_SIZE];
@@ -47,21 +47,18 @@ typedef struct __attribute__((__packed__)) csv_attestation_report_t {
 	uint8_t chip_id[CSV_ATTESTATION_CHIP_SN_SIZE];
 	uint8_t reserved1[32];
 	hash_block_t hmac;
-	uint8_t reserved2[1548];	// Padding to a page size
+	uint8_t reserved2[1548]; // Padding to a page size
 } csv_attestation_report;
 
 #include <stddef.h>
 
-#define CSV_ATTESTATION_REPORT_SIGN_DATA_OFFSET			 \
-	offsetof(csv_attestation_report, user_pubkey_digest)
-#define CSV_ATTESTATION_REPORT_SIGN_DATA_SIZE			 \
-	(offsetof(csv_attestation_report, sig_usage)		 \
-	 - offsetof(csv_attestation_report, user_pubkey_digest))
-#define CSV_ATTESTATION_REPORT_HMAC_DATA_OFFSET			 \
-	offsetof(csv_attestation_report, pek_cert)
-#define CSV_ATTESTATION_REPORT_HMAC_DATA_SIZE			 \
-	(offsetof(csv_attestation_report, hmac)			 \
-	 - offsetof(csv_attestation_report, pek_cert))
+#define CSV_ATTESTATION_REPORT_SIGN_DATA_OFFSET offsetof(csv_attestation_report, user_pubkey_digest)
+#define CSV_ATTESTATION_REPORT_SIGN_DATA_SIZE          \
+	(offsetof(csv_attestation_report, sig_usage) - \
+	 offsetof(csv_attestation_report, user_pubkey_digest))
+#define CSV_ATTESTATION_REPORT_HMAC_DATA_OFFSET offsetof(csv_attestation_report, pek_cert)
+#define CSV_ATTESTATION_REPORT_HMAC_DATA_SIZE \
+	(offsetof(csv_attestation_report, hmac) - offsetof(csv_attestation_report, pek_cert))
 
 typedef struct __attribute__((__packed__)) csv_evidence_t {
 	csv_attestation_report attestation_report;

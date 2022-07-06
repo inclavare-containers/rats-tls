@@ -26,8 +26,8 @@
 #endif
 // clang-format on
 
-#define TDEL_INFO    "/sys/firmware/acpi/tables/TDEL"
-#define TDEL_DATA    "/sys/firmware/acpi/tables/data/TDEL"
+#define TDEL_INFO "/sys/firmware/acpi/tables/TDEL"
+#define TDEL_DATA "/sys/firmware/acpi/tables/data/TDEL"
 
 static int tdx_get_report(const tdx_report_data_t *report_data, tdx_report_t *tdx_report)
 {

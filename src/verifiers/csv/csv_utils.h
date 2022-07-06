@@ -6,5 +6,5 @@
 
 #include <stdint.h>
 
-int sm3_hmac(const char *key, size_t key_len, const unsigned char *data,
-	     size_t data_len, unsigned char *hmac, size_t expected_hmac_len);
+int sm3_hmac(const char *key, size_t key_len, const unsigned char *data, size_t data_len,
+	     unsigned char *hmac, size_t expected_hmac_len);

@@ -7,8 +7,8 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 
-int sm3_hmac(const char *key, size_t key_len, const unsigned char *data,
-	     size_t data_len, unsigned char *hmac, size_t expected_hmac_len)
+int sm3_hmac(const char *key, size_t key_len, const unsigned char *data, size_t data_len,
+	     unsigned char *hmac, size_t expected_hmac_len)
 {
 	HMAC_CTX *hmac_ctx = HMAC_CTX_new();
 	const EVP_MD *evp_md = EVP_sm3();

@@ -32,8 +32,6 @@ extern void libattester_sgx_la_init(void);
 extern void libverifier_sgx_la_init(void);
 extern void libtls_wrapper_nulltls_init(void);
 extern void libtls_wrapper_openssl_init(void);
-#else
-extern void libverifier_sgx_ecdsa_init(void);
 #endif
 //clang-format on
 

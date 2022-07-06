@@ -19,8 +19,8 @@ typedef enum {
 	KEY_USAGE_TYPE_MAX = 0x1004,
 } key_usage_t;
 
-#define HYGON_SM2_UID_SIZE	 256
-#define HYGON_ECC_UID_SIZE	 HYGON_SM2_UID_SIZE
+#define HYGON_SM2_UID_SIZE 256
+#define HYGON_ECC_UID_SIZE HYGON_SM2_UID_SIZE
 typedef struct __attribute__((__packed__)) hygon_sm2_pubkey_in_cert {
 	uint32_t curve_id;
 	uint8_t qx[72];
@@ -34,7 +34,7 @@ typedef struct __attribute__((__packed__)) hygon_sm2_signature_in_cert {
 	uint8_t s[72];
 } hygon_signature_t;
 
-#define HYGON_CHIP_KEY_ID_SIZE	 16
+#define HYGON_CHIP_KEY_ID_SIZE 16
 typedef struct __attribute__((__packed__)) hygon_root_cert {
 	uint32_t version;
 	struct {
@@ -53,7 +53,6 @@ typedef struct __attribute__((__packed__)) hygon_root_cert {
 	};
 	uint8_t reserved3[112];
 } hygon_root_cert_t;
-
 
 typedef struct __attribute__((__packed__)) hygon_csv_sm2_pubkey_in_cert {
 	uint32_t curve_id;

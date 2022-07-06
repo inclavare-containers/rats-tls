@@ -39,11 +39,13 @@ X509_STORE *X509_STORE_CTX_get0_store(X509_STORE_CTX *ctx)
 	return ctx->ctx;
 }
 
+// clang-format off
 /* Flags for X509_get_signature_info() */
 /* Signature info is valid */
 #define X509_SIG_INFO_VALID 0x1
 /* Signature is suitable for TLS use */
 #define X509_SIG_INFO_TLS 0x2
+// clang-format on
 
 static int X509_sig_info_get(const X509 *x, int *mdnid, int *pknid, int *secbits, uint32_t *flags)
 {
@@ -52,9 +54,11 @@ static int X509_sig_info_get(const X509 *x, int *mdnid, int *pknid, int *secbits
 	int siginf_secbits = -1;
 	uint32_t siginf_flags = 0;
 
+	// clang-format off
 	if (!OBJ_find_sigid_algs(OBJ_obj2nid(x->sig_alg->algorithm), &siginf_mdnid,
 				 &siginf_pknid) || (siginf_pknid == NID_undef))
 		goto ret;
+	// clang-format on
 
 	if (siginf_mdnid == NID_undef)
 		goto ret;

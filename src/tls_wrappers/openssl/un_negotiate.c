@@ -12,6 +12,7 @@
 #include <rats-tls/tls_wrapper.h>
 #include <rats-tls/oid.h>
 #include <internal/core.h>
+// clang-format off
 #ifdef SGX
 #include "sgx_report.h"
 #endif
@@ -20,6 +21,7 @@
 #else
 #include "sgx_quote_3.h"
 #endif
+// clang-format on
 #include "per_thread.h"
 #include "openssl.h"
 
