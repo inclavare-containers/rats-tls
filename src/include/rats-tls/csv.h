@@ -63,6 +63,7 @@ typedef struct __attribute__((__packed__)) csv_attestation_report_t {
 typedef struct __attribute__((__packed__)) csv_evidence_t {
 	csv_attestation_report attestation_report;
 	uint8_t hsk_cek_cert[HYGON_HSK_CEK_CERT_SIZE];
+	uint32_t hsk_cek_cert_len;
 } csv_evidence;
 
 #endif /* _ENCLAVE_CSV_H_ */
