@@ -9,7 +9,7 @@ docker run -it --privileged --network host \
   -v /dev/sgx_enclave:/dev/sgx/enclave \
   -v /dev/sgx_provision:/dev/sgx/provision \
   -v /var/run/aesmd:/var/run/aesmd \
-  occlum/occlum:0.21.0-ubuntu18.04
+  occlum/occlum:0.28.0-ubuntu20.04
 ```
 
 2. Please refer to [this guide](https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/master/README.md) to install DCAP. Note: If your platform is pre-product SGX platform (SBX), please follow [this guide](https://github.com/inclavare-containers/inclavare-containers/blob/master/hack/use-sbx-platform/README.md) to resolve the quote verification problem on SBX platforms.
@@ -20,7 +20,6 @@ docker run -it --privileged --network host \
 cd occlum
 make submodule && OCCLUM_RELEASE_BUILD=1 make install
 ```
-
 
 # Quick start
 
@@ -70,8 +69,8 @@ cp ../rats-tls-server image/bin
 cp /lib/x86_64-linux-gnu/libdl.so.2 image/opt/occlum/glibc/lib
 cp /usr/lib/x86_64-linux-gnu/libssl.so.1.1 image/opt/occlum/glibc/lib
 cp /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 image/opt/occlum/glibc/lib
-mkdir -p image/opt/rats-tls
-cp -rf /usr/local/rats-tls/lib image/opt/rats-tls
+mkdir -p image/usr/local/lib
+cp -rf /usr/local/lib/rats-tls image/usr/local/lib
 
 occlum build
 occlum run /bin/rats-tls-server -m -l debug
@@ -153,8 +152,8 @@ cp ../rats-tls-client image/bin
 cp /lib/x86_64-linux-gnu/libdl.so.2 image/opt/occlum/glibc/lib
 cp /usr/lib/x86_64-linux-gnu/libssl.so.1.1 image/opt/occlum/glibc/lib
 cp /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 image/opt/occlum/glibc/lib
-mkdir -p image/opt/rats-tls
-cp -rf /usr/local/rats-tls/lib image/opt/rats-tls
+mkdir -p image/usr/local/lib
+cp -rf /usr/local/lib/rats-tls image/usr/local/lib
 
 occlum build
 occlum run /bin/rats-tls-client -l debug -m
