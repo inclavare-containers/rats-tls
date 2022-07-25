@@ -1,4 +1,4 @@
-%define centos_base_release 1
+%define anolis_release 1
 %define _debugsource_template %{nil}
 
 %global RATS_TLS_BINDIR /usr/share/rats-tls/samples
@@ -8,17 +8,17 @@
 %undefine _missing_build_ids_terminate_build
 %define _unpackaged_files_terminate_build 0
 
-%global PROJECT inclavare-containers
+%global PROJECT rats-tls
 
 Name: rats-tls
 Version: %{RATS_TLS_VERSION}
-Release: %{centos_base_release}%{?dist}
+Release: %{anolis_release}%{?dist}
 Summary: rats-tls is a protocol to establish secure and trusted channel by integrating enclave attestation with transport layer security.
 
 Group: Development/Tools
 License: Apache License 2.0
-URL: https://github.com/alibaba/%{PROJECT}
-Source0: https://github.com/alibaba/%{PROJECT}/archive/v%{version}.tar.gz
+URL: https://github.com/inclavare-containers/%{PROJECT}
+Source0: https://github.com/inclavare-containers/%{PROJECT}/archive/v%{version}.tar.gz
 
 BuildRequires: git
 BuildRequires: cmake

@@ -6,16 +6,17 @@ ifeq ($(RATS_TLS_MAINTAINER),)
 $(error "Please run make package in the root directory")
 endif
 
+PROJECT := rats-tls
 PROJECT_DIR := $(shell cd ../..; pwd)
 RPMBUILD_DIR := $(shell mktemp -u /tmp/rpmbuild.XXXX)
-RELEASE_TARBALL_URL := https://github.com/alibaba/inclavare-containers/archive/v$(RATS_TLS_VERSION).tar.gz
 RELEASE_TARBALL_FILE := $(RPMBUILD_DIR)/SOURCES/v$(RATS_TLS_VERSION).tar.gz
 RELEASE_TARBALL_EXIST := $(shell if [ -f $(RELEASE_TARBALL_FILE) ]; then echo "y"; else echo "n"; fi;)
 
 release-tarball:
 ifneq ($(RELEASE_TARBALL_EXIST), y)
 	@mkdir -p $(RPMBUILD_DIR)/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-	@wget -P $(RPMBUILD_DIR)/SOURCES $(RELEASE_TARBALL_URL)
+	@cp -r $(PROJECT_DIR) $(RPMBUILD_DIR)/SOURCES/$(PROJECT)-$(RATS_TLS_VERSION)
+	@cd $(RPMBUILD_DIR)/SOURCES && tar -cvzf "v$(RATS_TLS_VERSION).tar.gz" $(PROJECT)-$(RATS_TLS_VERSION)
 endif
 
 rpm: rpm/rats_tls.spec release-tarball
@@ -24,7 +25,7 @@ rpm: rpm/rats_tls.spec release-tarball
 	@rpmbuild -D "_topdir $(RPMBUILD_DIR)" -ba --define 'mode occlum' rpm/rats_tls.spec
 	@rpmbuild -D "_topdir $(RPMBUILD_DIR)" -ba --define 'mode sgx' rpm/rats_tls.spec
 	@rpmbuild -D "_topdir $(RPMBUILD_DIR)" -ba --define 'mode tdx' rpm/rats_tls.spec
-	@cp $(RPMBUILD_DIR)/RPMS/x86_64/*.rpm $(PROJECT_DIR)
+	@cp $(RPMBUILD_DIR)/RPMS/x86_64/*.rpm $(PROJECT_DIR)/$(PROJECT)
 	@rm -rf $(RPMBUILD_DIR)
 	@echo "the rpms of rats tls located in $(PROJECT_DIR)"
 
