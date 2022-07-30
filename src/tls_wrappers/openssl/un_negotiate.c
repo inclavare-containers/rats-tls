@@ -293,6 +293,34 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 {
 #endif
 
+#if 0
+#ifndef SGX
+	X509 *crt = X509_STORE_CTX_get_current_cert(ctx);
+	if (!crt) {
+		RTLS_ERR("failed to retrieve certificate\n");
+		return 0;
+	}
+
+	/* Convert the certificate into a buffer in DER format */
+	int der_cert_size = i2d_X509(crt, NULL);
+	unsigned char *der_buf = (unsigned char *)malloc((size_t)der_cert_size);
+	if (!der_buf) {
+		RTLS_ERR("failed to allocate buffer (%d-byte) for certificate\n", der_cert_size);
+		return 0;
+	}
+
+	unsigned char *der_cert = der_buf;
+	der_cert_size = i2d_X509(crt, &der_cert);
+
+	/* Dump certificate */
+	FILE *fp = fopen("/tmp/cert.der", "wb");
+	fwrite(der_buf, der_cert_size, 1, fp);
+	fclose(fp);
+
+	free(der_buf);
+#endif
+#endif
+
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 	X509_STORE *cert_store = X509_STORE_CTX_get0_store(ctx);
 	int *ex_data = per_thread_getspecific();
