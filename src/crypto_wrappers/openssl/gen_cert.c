@@ -14,16 +14,57 @@
 
 static int x509_extension_add(X509 *cert, const char *oid, const void *data, size_t data_len)
 {
-	int nid;
 	ASN1_OCTET_STRING *octet = NULL;
-	X509_EXTENSION *ext = NULL;
 	int ret = 0;
+	X509V3_CTX ctx;
 
-	nid = OBJ_txt2nid(oid);
+	X509V3_set_ctx_nodb(&ctx);
+	X509V3_set_ctx(&ctx, cert, cert, NULL, NULL, 0);
+
+	X509_EXTENSION *ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_basic_constraints, "CA:FALSE");
+	if (!ext) {
+		RTLS_ERR("failed to create basic constraint extension\n");
+		goto err;
+	}
+
+	if (!X509_add_ext(cert, ext, -1)) {
+		RTLS_ERR("failed to add basic constraint extension\n");
+		goto err;
+	}
+
+	X509_EXTENSION_free(ext);
+
+	ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_subject_key_identifier, "hash");
+	if (!ext) {
+		RTLS_ERR("failed to create subject key identifier extension\n");
+		goto err;
+	}
+
+	if (!X509_add_ext(cert, ext, -1)) {
+		RTLS_ERR("failed to add subject key identifier extension\n");
+		goto err;
+	}
+
+	X509_EXTENSION_free(ext);
+
+	ext = X509V3_EXT_conf_nid(NULL, &ctx, NID_authority_key_identifier, "keyid:always");
+	if (!ext) {
+		RTLS_ERR("failed to create authority key identifier extension\n");
+		goto err;
+	}
+
+	if (!X509_add_ext(cert, ext, -1)) {
+		RTLS_ERR("failed to add authority key identifier extension\n");
+		goto err;
+	}
+
+	X509_EXTENSION_free(ext);
+
+	int nid = OBJ_txt2nid(oid);
 	if (nid == NID_undef) {
 		nid = OBJ_create(oid, NULL, NULL);
 		if (nid == NID_undef) {
-			RTLS_DEBUG("failed to create the object %s\n", oid);
+			RTLS_ERR("failed to create the object %s\n", oid);
 			return ret;
 		}
 	}
@@ -36,21 +77,18 @@ static int x509_extension_add(X509 *cert, const char *oid, const void *data, siz
 
 	ext = X509_EXTENSION_create_by_NID(NULL, nid, 0, octet);
 	if (!ext) {
-		RTLS_DEBUG("extension create failed, %s\n", oid);
+		RTLS_ERR("failed to create extension\n");
 		goto err;
 	}
 
 	if (!X509_add_ext(cert, ext, -1)) {
-		RTLS_DEBUG("extension add failed, %s\n", oid);
+		RTLS_ERR("failed to add extension %s\n", oid);
 		goto err;
 	}
 
 	ret = 1;
 
 err:
-	if (ret == 0)
-		RTLS_DEBUG("X509 extension add failed, %s, nid = %d\n", oid, nid);
-
 	if (ext)
 		X509_EXTENSION_free(ext);
 
