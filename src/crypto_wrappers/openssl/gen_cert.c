@@ -10,7 +10,7 @@
 #include <rats-tls/oid.h>
 #include "openssl.h"
 
-#define CERT_SERIAL_NUMBER 9527
+#define CERT_SERIAL_NUMBER 1
 
 static int x509_extension_add(X509 *cert, const char *oid, const void *data, size_t data_len)
 {
