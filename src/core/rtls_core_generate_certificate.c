@@ -61,8 +61,7 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	rats_tls_cert_info_t cert_info = {
 		.subject = {
 			.organization = (const unsigned char *)"Inclavare Containers",
-			.organization_unit = (const unsigned char *)"Enclave Attestation Architecture",
-			.common_name = (const unsigned char *)"Rats TLS",
+			.common_name = (const unsigned char *)"RATS-TLS",
 		},
 	};
 	enclave_attester_err_t q_err;
