@@ -12,7 +12,7 @@ crate-type = ["dylib"]
 [dependencies]
 protobuf = "2.8.0"
 ttrpc = { version = "0.5.2", features = ["async"] }
-sev = { git = "https://github.com/haosanzi/sev", ref = "ffb2794", features = ["openssl"]}
+sev = { git = "https://github.com/haosanzi/sev", branch= "main", features = ["openssl"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 libc = "0.2.107"
