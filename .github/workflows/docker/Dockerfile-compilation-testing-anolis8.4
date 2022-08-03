@@ -15,7 +15,7 @@ ENV PATH         /root/.cargo/bin:$PATH
 
 # install LVI binutils for rats-tls build
 RUN wget https://download.01.org/intel-sgx/sgx-linux/2.15.1/as.ld.objdump.r4.tar.gz && \
-	tar -zxvf as.ld.objdump.r4.tar.gz && cp -rf external/toolset/centos8.2/* /usr/local/bin/ && \
+    tar -zxvf as.ld.objdump.r4.tar.gz && cp -rf external/toolset/centos8.2/* /usr/local/bin/ && \
     rm -rf external && rm -rf as.ld.objdump.r4.tar.gz
 
 # install SGX
