@@ -1,0 +1,38 @@
+name: Basic Compilation Check
+
+on: [push, pull_request]
+
+jobs:
+  basic_complication_check:
+    # Run all steps in the compilation testing containers
+    container: runetest/compilation-testing:anolis8.4
+
+    # Use GitHub-hosted runner Ubuntu 20.04
+    runs-on: ubuntu-20.04
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ github.workspace }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+       
+      - name: Compile "rats-tls" host mode
+        run:
+          source /root/.bashrc && cmake -DBUILD_SAMPLES=on -H. -Bbuild && make -C build install && make -C build clean && rm -rf build
+        env:
+          HOME: /root
+          
+      - name: Compile "rats-tls" occlum mode
+        run:
+          source /root/.bashrc && cmake -DRATS_TLS_BUILD_MODE="occlum" -DBUILD_SAMPLES=on -H. -Bbuild && make -C build install && make -C build clean && rm -rf build
+        env:
+          HOME: /root
+          
+      - name: Compile "rats-tls" sgx mode
+        run:
+          source /root/.bashrc && cmake -DRATS_TLS_BUILD_MODE="sgx" -DBUILD_SAMPLES=on -H. -Bbuild && make -C build install && make -C build clean && rm -rf build
+        env:
+          HOME: /root
