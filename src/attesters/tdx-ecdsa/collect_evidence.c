@@ -41,53 +41,66 @@ static int tdx_get_report(const tdx_report_data_t *report_data, tdx_report_t *td
 }
 
 enclave_attester_err_t tdx_get_tdel_info(enclave_attester_ctx_t *ctx,
-					 attestation_evidence_t *evidence)
+					 attestation_evidence_t *evidence,
+					 int *tdel_info_len)
 {
-	int fd = 0;
-	char tdel_info[TDEL_INFO_SZ];
-
 	RTLS_DEBUG("ctx %p, evidence %p\n", ctx, evidence);
-	if (fd = open(TDEL_INFO, O_RDONLY) < 0) {
-		RTLS_ERR("failed to open TDEL info device\n");
-		return -ENCLAVE_ATTESTER_ERR_INVALID;
+
+	int fd = open(TDEL_INFO, O_RDONLY);
+	if (fd < 0) {
+		RTLS_INFO("failed to open TDEL info device\n");
+		/* TDEL is optional */
+		return ENCLAVE_ATTESTER_ERR_NONE;
 	}
 
-	int tdel_info_sz = read(fd, tdel_info, TDEL_INFO_SZ);
-	if (tdel_info_sz != TDEL_INFO_SZ) {
-		RTLS_ERR("failed to read tdinfo\n");
+	unsigned char tdel_info[TDEL_INFO_SZ];
+	int tdel_info_sz = read(fd, tdel_info, sizeof(tdel_info));
+	if (tdel_info_sz != sizeof(tdel_info)) {
 		close(fd);
+		RTLS_ERR("failed to read TDEL info\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
 
-	memcpy(&(evidence->tdx.quote[TDX_ECDSA_QUOTE_SZ]), tdel_info, TDEL_INFO_SZ);
+	*tdel_info_len = tdel_info_sz;
+	memcpy(&(evidence->tdx.quote[TDX_ECDSA_QUOTE_SZ]), tdel_info, tdel_info_sz);
 
 	close(fd);
+
+	RTLS_DEBUG("TDEL info size %d-byte\n", tdel_info_sz);
 
 	return ENCLAVE_ATTESTER_ERR_NONE;
 }
 
 enclave_attester_err_t tdx_get_tdel_data(enclave_attester_ctx_t *ctx,
-					 attestation_evidence_t *evidence)
+					 attestation_evidence_t *evidence,
+					 int *tdel_data_len)
 {
-	int fd = 0;
-	char tdel_data[TDEL_DATA_SZ];
-
 	RTLS_DEBUG("ctx %p, evidence %p\n", ctx, evidence);
-	if (fd = open(TDEL_DATA, O_RDONLY) < 0) {
+
+	int fd = open(TDEL_DATA, O_RDONLY);
+	if (fd < 0) {
 		RTLS_ERR("failed to open TDEL info device\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
 
-	int tdel_data_sz = read(fd, tdel_data, TDEL_DATA_SZ);
-	if (tdel_data_sz != TDEL_DATA_SZ) {
-		RTLS_ERR("failed to open TDEL data\n");
+
+	unsigned char tdel_data[TDEL_DATA_SZ];
+	int tdel_data_sz = read(fd, tdel_data, sizeof(tdel_data));
+	if (tdel_data_sz <= 0) {
 		close(fd);
+		RTLS_INFO("failed to read TDEL data\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
 
+	if (tdel_data_sz == sizeof(tdel_data))
+		RTLS_WARN("TDEL data buffer (%d-byte) may be too small\n", sizeof(tdel_data));
+
+	*tdel_data_len = tdel_data_sz;
 	memcpy(&(evidence->tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]), tdel_data, tdel_data_sz);
 
 	close(fd);
+
+	RTLS_DEBUG("TDEL data size %d-byte\n", tdel_data_sz);
 
 	return ENCLAVE_ATTESTER_ERR_NONE;
 }
@@ -153,16 +166,21 @@ enclave_attester_err_t tdx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 
 	RTLS_DEBUG("Succeed to generate the quote!\n");
 
-	if (tdx_get_tdel_info(ctx, evidence) != ENCLAVE_ATTESTER_ERR_NONE)
+	int tdel_info_len = 0;
+	if (tdx_get_tdel_info(ctx, evidence, &tdel_info_len) != ENCLAVE_ATTESTER_ERR_NONE)
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 
-	if (tdx_get_tdel_data(ctx, evidence) != ENCLAVE_ATTESTER_ERR_NONE)
+	/* TDEL information is optional */
+	int tdel_data_len = 0;
+	if (tdel_info_len && tdx_get_tdel_data(ctx, evidence, &tdel_data_len) != ENCLAVE_ATTESTER_ERR_NONE)
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 
 	/* Essentially speaking, QGS generates the same
 	 * format of quote as sgx_ecdsa.
 	 */
 	snprintf(evidence->type, sizeof(evidence->type), "tdx_ecdsa");
+	evidence->tdx.tdel_info_len = tdel_info_len;
+	evidence->tdx.tdel_data_len = tdel_data_len;
 
 	RTLS_DEBUG("ctx %p, evidence %p, quote_size %d\n", ctx, evidence, evidence->tdx.quote_len);
 

@@ -42,6 +42,8 @@ typedef struct {
 typedef struct {
 	uint8_t quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ + TDEL_DATA_SZ];
 	uint32_t quote_len;
+	uint32_t tdel_info_len;
+	uint32_t tdel_data_len;
 } tdx_attestation_evidence_t;
 
 typedef struct {
