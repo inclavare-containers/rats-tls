@@ -120,7 +120,7 @@ static int tdx_gen_quote(uint8_t *hash, uint8_t *quote_buf, uint32_t *quote_size
 	}
 
 	if (p_quote_size > *quote_size) {
-		RTLS_ERR("quote buffer is too small.\n");
+		RTLS_ERR("quote buffer is too small (%d-byte vs %d-byte).\n", p_quote_size, *quote_size);
 		tdx_att_free_quote(p_quote);
 		return -1;
 	}
