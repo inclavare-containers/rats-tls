@@ -400,9 +400,9 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		ev.type = TDX_ECDSA;
 		ev.quote = (char *)quote4;
 		ev.tdx.tdel_info = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ]);
-		ev.tdx.tdel_info_sz = TDEL_INFO_SZ;
+		ev.tdx.tdel_info_sz = evidence.tdx.tdel_info_len;
 		ev.tdx.tdel_data = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]);
-		ev.tdx.tdel_data_sz = TDEL_DATA_SZ;
+		ev.tdx.tdel_data_sz = evidence.tdx.tdel_data_len;
 	}
 #endif
 
