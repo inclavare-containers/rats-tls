@@ -145,6 +145,7 @@ enclave_attester_err_t tdx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 {
 	RTLS_DEBUG("ctx %p, evidence %p, algo %d, hash %p\n", ctx, evidence, algo, hash);
 
+	evidence->tdx.quote_len = sizeof(evidence->tdx.quote);
 	if (tdx_gen_quote(hash, evidence->tdx.quote, &evidence->tdx.quote_len)) {
 		RTLS_ERR("failed to generate quote\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
