@@ -1,0 +1,92 @@
+-- RATS-TLS ASN.1 syntax
+RATS-TLS {
+    iso member-body(2) us(840) intel(113741)
+} DEFINITIONS ::= BEGIN
+
+    RATS-TLS-Certificate-Extension-V1 ::= SEQUENCE {
+        id       RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension),
+        version  RATS-TLS-Version (1),
+        evidence RATS-TLS-Certificate-Extension-Evidence 
+    }
+
+    RATS-TLS-OID ::= OBJECT IDENTIFIER (oid-RATS-TLS-Certificate-Extension |
+                                        oid-RATS-TLS-Certificate-Extension-Evidence |
+                                        oid-RATS-TLS-Certificate-Extension-Evidence-SGX-EPID |
+                                        oid-RATS-TLS-Certificate-Extension-Evidence-SGX-ECDSA |
+                                        oid-RATS-TLS-Certificate-Extension-Evidence-TDX-ECDSA |
+                                        oid-RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT)
+
+    -- RATS-TLS Certificate Extension OID: 1.2.840.113741.1337
+    oid-RATS-TLS-Certificate-Extension OBJECT IDENTIFIER ::= {
+        iso member-body(2) us(840) intel(113741) rats-tls-certificate-extension(1337)
+    }
+    -- RATS-TLS Certificate Extension Evidence OID: 1.2.840.113741.1337.1
+    oid-RATS-TLS-Certificate-Extension-Evidence OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension 1
+    }
+    -- SGX EPID OID: 1.2.840.113741.1337.1.1
+    oid-RATS-TLS-Certificate-Extension-Evidence-SGX-EPID OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension-Evidence 1
+    }
+    -- SGX ECDSA OID: 1.2.840.113741.1337.1.2
+    oid-RATS-TLS-Certificate-Extension-Evidence-SGX-ECDSA OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension-Evidence 2
+    }
+    -- SGX LOCAL REPORT OID: 1.2.840.113741.1337.1.3
+    oid-RATS-TLS-Certificate-Extension-Evidence-SGX-LOCAL-REPORT OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension-Evidence 3
+    }
+    -- TDX ECDSA OID: 1.2.840.113741.1337.1.4
+    oid-RATS-TLS-Certificate-Extension-Evidence-TDX-ECDSA OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension-Evidence 4
+    }
+    -- TDX LOCAL REPORT OID: 1.2.840.113741.1337.1.5
+    oid-RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension-Evidence 5
+    }
+
+    RATS-TLS-Version ::= INTEGER (1..255)
+
+    RATS-TLS-Certificate-Extension-Evidence ::= SEQUENCE {
+        id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence),
+        version RATS-TLS-Version (1),
+        -- type RATS-TLS-Certificate-Extension-Evidence-Type,
+        content CHOICE {
+            sgxEpid        [0] EXPLICIT RATS-TLS-Certificate-Extension-Evidence-SGX-EPID,
+            sgxEcdsa       [1] EXPLICIT RATS-TLS-Certificate-Extension-Evidence-SGX-ECDSA,
+            sgxLocalReport [2] EXPLICIT RATS-TLS-Certificate-Extension-Evidence-SGX-LOCAL-REPORT,
+            tdxEcdsa       [3] EXPLICIT RATS-TLS-Certificate-Extension-Evidence-TDX-ECDSA,
+            tdxLocalReport [4] EXPLICIT RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT
+        }
+    }
+
+    RATS-TLS-Certificate-Extension-Evidence-Type ::= ENUMERATED {
+        sgxEpid, sgxEcdsa, sgxLocalReport, tdxEcdsa, tdxLocalReport
+    }
+
+    RATS-TLS-Certificate-Extension-Evidence-SGX-EPID ::= SEQUENCE {
+        id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence-SGX-EPID),
+        content OCTET STRING
+    }
+
+    RATS-TLS-Certificate-Extension-Evidence-SGX-ECDSA ::= SEQUENCE {
+       id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence-SGX-ECDSA),
+       content OCTET STRING
+    }
+
+    RATS-TLS-Certificate-Extension-Evidence-SGX-LOCAL-REPORT ::= SEQUENCE {
+       id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence-SGX-LOCAL-REPORT),
+       content OCTET STRING
+    }
+
+    RATS-TLS-Certificate-Extension-Evidence-TDX-ECDSA ::= SEQUENCE {
+       id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence-TDX-ECDSA),
+       content OCTET STRING
+    }
+
+    RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT ::= SEQUENCE {
+       id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT),
+       content OCTET STRING
+    }
+
+END
