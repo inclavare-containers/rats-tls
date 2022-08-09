@@ -4,17 +4,21 @@ RATS-TLS {
 } DEFINITIONS ::= BEGIN
 
     RATS-TLS-Certificate-Extension-V1 ::= SEQUENCE {
-        id       RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension),
-        version  RATS-TLS-Version (1),
-        evidence RATS-TLS-Certificate-Extension-Evidence 
+        id          RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension),
+        version     RATS-TLS-Version (1),
+        evidence    RATS-TLS-Certificate-Extension-Evidence,
+        endorsement RATS-TLS-Certificate-Extension-Endorsement OPTIONAL
     }
 
     RATS-TLS-OID ::= OBJECT IDENTIFIER (oid-RATS-TLS-Certificate-Extension |
                                         oid-RATS-TLS-Certificate-Extension-Evidence |
+                                        oid-RATS-TLS-Certificate-Extension-Endorsement |
                                         oid-RATS-TLS-Certificate-Extension-Evidence-SGX-EPID |
                                         oid-RATS-TLS-Certificate-Extension-Evidence-SGX-ECDSA |
                                         oid-RATS-TLS-Certificate-Extension-Evidence-TDX-ECDSA |
-                                        oid-RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT)
+                                        oid-RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT |
+                                        oid-RATS-TLS-Certificate-Extension-Endorsement-SGX-ECDSA |
+                                        oid-RATS-TLS-Certificate-Extension-Endorsement-TDX-ECDSA)
 
     -- RATS-TLS Certificate Extension OID: 1.2.840.113741.1337
     oid-RATS-TLS-Certificate-Extension OBJECT IDENTIFIER ::= {
@@ -23,6 +27,10 @@ RATS-TLS {
     -- RATS-TLS Certificate Extension Evidence OID: 1.2.840.113741.1337.1
     oid-RATS-TLS-Certificate-Extension-Evidence OBJECT IDENTIFIER ::= {
         oid-RATS-TLS-Certificate-Extension 1
+    }
+    -- RATS-TLS Certificate Extension Evidence OID: 1.2.840.113741.1337.2
+    oid-RATS-TLS-Certificate-Extension-Endorsement OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension 2
     }
     -- SGX EPID OID: 1.2.840.113741.1337.1.1
     oid-RATS-TLS-Certificate-Extension-Evidence-SGX-EPID OBJECT IDENTIFIER ::= {
@@ -44,12 +52,19 @@ RATS-TLS {
     oid-RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT OBJECT IDENTIFIER ::= {
         oid-RATS-TLS-Certificate-Extension-Evidence 5
     }
+    -- SGX ECDSA Endorsement OID: 1.2.840.113741.1337.2.2
+    oid-RATS-TLS-Certificate-Extension-Endorsement-SGX-ECDSA OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension-Endorsement 2
+    }
+    -- TDX ECDSA Endorsement OID: 1.2.840.113741.1337.2.4
+    oid-RATS-TLS-Certificate-Extension-Endorsement-TDX-ECDSA OBJECT IDENTIFIER ::= {
+        oid-RATS-TLS-Certificate-Extension-Endorsement 4
+    }
 
     RATS-TLS-Version ::= INTEGER (1..255)
 
     RATS-TLS-Certificate-Extension-Evidence ::= SEQUENCE {
         id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence),
-        version RATS-TLS-Version (1),
         -- type RATS-TLS-Certificate-Extension-Evidence-Type,
         content CHOICE {
             sgxEpid        [0] EXPLICIT RATS-TLS-Certificate-Extension-Evidence-SGX-EPID,
@@ -86,6 +101,29 @@ RATS-TLS {
 
     RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT ::= SEQUENCE {
        id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Evidence-TDX-LOCAL-REPORT),
+       content OCTET STRING
+    }
+
+    RATS-TLS-Certificate-Extension-Endorsement ::= SEQUENCE {
+        id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Endorsement),
+        -- type RATS-TLS-Certificate-Extension-Endorsement-Type,
+        content CHOICE {
+            sgxEcdsa    [0] EXPLICIT RATS-TLS-Certificate-Extension-Endorsement-SGX-ECDSA,
+            tdxEcdsa    [1] EXPLICIT RATS-TLS-Certificate-Extension-Endorsement-TDX-ECDSA
+        }
+    }
+
+    RATS-TLS-Certificate-Extension-Endorsement-Type ::= ENUMERATED {
+        sgxEcdsa, tdxEcdsa
+    }
+
+    RATS-TLS-Certificate-Extension-Endorsement-SGX-ECDSA ::= SEQUENCE {
+       id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Endorsement-SGX-ECDSA),
+       content OCTET STRING
+    }
+
+    RATS-TLS-Certificate-Extension-Endorsement-TDX-ECDSA ::= SEQUENCE {
+       id RATS-TLS-OID (oid-RATS-TLS-Certificate-Extension-Endorsement-TDX-ECDSA),
        content OCTET STRING
     }
 
