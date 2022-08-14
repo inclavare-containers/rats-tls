@@ -274,7 +274,7 @@ int main(int argc, char **argv)
 	printf("    - Welcome to RATS-TLS sample server program\n");
 #endif
 
-	char *const short_options = "a:v:t:c:ml:i:p:D:h";
+	char *const short_options = "a:v:t:c:ml:i:p:Dh";
 	// clang-format off
         struct option long_options[] = {
                 { "attester", required_argument, NULL, 'a' },
