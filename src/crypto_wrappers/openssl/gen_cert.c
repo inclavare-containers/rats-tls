@@ -12,6 +12,8 @@
 
 #define CERT_SERIAL_NUMBER 1
 
+static bool using_cert_nonce = false;
+
 static int x509_extension_add(X509 *cert, const char *oid, const void *data, size_t data_len)
 {
 	ASN1_OCTET_STRING *octet = NULL;
@@ -140,10 +142,18 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 	X509_set_version(cert, 3);
 	ASN1_INTEGER_set(X509_get_serialNumber(cert), CERT_SERIAL_NUMBER);
-	/* WORKAROUND: allow 1 hour delay for the systems behind current clock */
-	X509_gmtime_adj(X509_get_notBefore(cert), -3600);
-	/* 1 year */
-	X509_gmtime_adj(X509_get_notAfter(cert), (long)3600 * 24 * 365 * 1);
+	if (!using_cert_nonce) {
+		/* WORKAROUND: allow 1 hour delay for the systems behind current clock */
+		X509_gmtime_adj(X509_get_notBefore(cert), -3600);
+		/* 1 year */
+		X509_gmtime_adj(X509_get_notAfter(cert), (long)3600 * 24 * 365 * 1);
+	} else {
+		/* WORKAROUND: with nonce mechanism, the validity of cert can be fixed within a larger range. */
+		const char timestr_notBefore[] = "19700101000001Z"; 
+		const char timestr_notAfter[] = "20491231235959Z"; 
+		ASN1_TIME_set_string(X509_get_notBefore(cert), timestr_notBefore);
+		ASN1_TIME_set_string(X509_get_notAfter(cert), timestr_notAfter);
+	}
 
 	ret = -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
 	if (!X509_set_pubkey(cert, pkey))
