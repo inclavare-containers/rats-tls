@@ -253,12 +253,30 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 		goto err_munmap;
 	}
 
+	/* Save user_data->mnonce to check the timeliness of attestation report later */
+	unsigned char cur_mnonce[CSV_ATTESTATION_MNONCE_SIZE];
+	memcpy(cur_mnonce, user_data->mnonce, CSV_ATTESTATION_MNONCE_SIZE);
+
 	/* Request ATTESTATION */
 	user_data_pa = (uint64_t)gva_to_gpa(user_data);
 	ret = do_hypercall(KVM_HC_VM_ATTESTATION, (unsigned long)user_data_pa, CSV_GUEST_MAP_LEN);
 	if (ret) {
 		RTLS_ERR("failed to save attestation report to %#016lx (ret:%d)\n", user_data_pa,
 			 ret);
+		goto err_munmap;
+	}
+
+	/* Check whether the attestation report is fresh */
+	unsigned char report_mnonce[CSV_ATTESTATION_MNONCE_SIZE];
+	csv_attestation_report *attestation_report = (csv_attestation_report *)user_data;
+	int i;
+
+	for (i = 0; i < CSV_ATTESTATION_MNONCE_SIZE / sizeof(uint32_t); i++)
+		((uint32_t *)report_mnonce)[i] = ((uint32_t *)attestation_report->mnonce)[i] ^
+						 attestation_report->anonce;
+	ret = memcmp(cur_mnonce, report_mnonce, CSV_ATTESTATION_MNONCE_SIZE);
+	if (ret) {
+		RTLS_ERR("mnonce is not fresh\n");
 		goto err_munmap;
 	}
 
@@ -272,11 +290,10 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 	assert(sizeof(csv_evidence) <= sizeof(evidence->report));
 
 	/* Retreive ChipId from attestation report */
-	csv_attestation_report *attestation_report = &evidence_buffer->attestation_report;
 	uint8_t chip_id[CSV_ATTESTATION_CHIP_SN_SIZE + 1] = {
 		0,
 	};
-	int i;
+	attestation_report = &evidence_buffer->attestation_report;
 
 	for (i = 0; i < CSV_ATTESTATION_CHIP_SN_SIZE / sizeof(uint32_t); i++)
 		((uint32_t *)chip_id)[i] = ((uint32_t *)attestation_report->chip_id)[i] ^
