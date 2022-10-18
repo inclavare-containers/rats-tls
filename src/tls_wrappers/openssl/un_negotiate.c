@@ -11,6 +11,7 @@
 #include <rats-tls/err.h>
 #include <rats-tls/tls_wrapper.h>
 #include <rats-tls/oid.h>
+#include <rats-tls/csv.h>
 #include <internal/core.h>
 // clang-format off
 #ifdef SGX
@@ -437,6 +438,29 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		ev.tdx.tdel_data_sz = evidence.tdx.tdel_data_len;
 	}
 #endif
+	else if (!strncmp(evidence.type, "csv", sizeof(evidence.type))) {
+		csv_evidence *c_evi = (csv_evidence *)evidence.csv.report;
+		csv_attestation_report *report = &c_evi->attestation_report;
+		int i = 0;
+		int cnt = (offsetof(csv_attestation_report, anonce) -
+			   offsetof(csv_attestation_report, user_pubkey_digest)) /
+			  sizeof(uint32_t);
+
+		for (i = 0; i < cnt; i++)
+			((uint32_t *)report)[i] ^= report->anonce;
+
+		ev.csv.vm_id = (uint8_t *)&(report->vm_id);
+		ev.csv.vm_id_sz = sizeof(report->vm_id);
+		ev.csv.vm_version = (uint8_t *)&(report->vm_version);
+		ev.csv.vm_version_sz = sizeof(report->vm_version);
+		ev.csv.measure = (uint8_t *)&(report->measure);
+		ev.csv.measure_sz = sizeof(report->measure);
+		ev.csv.policy = (uint8_t *)&(report->policy);
+		ev.csv.policy_sz = sizeof(report->policy);
+		ev.type = CSV;
+		ev.quote = (char *)report;
+		ev.quote_size = sizeof(*report);
+	}
 
 	if (tls_ctx->rtls_handle->user_callback) {
 		rc = tls_ctx->rtls_handle->user_callback(&ev);
