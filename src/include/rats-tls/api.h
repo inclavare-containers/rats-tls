@@ -95,6 +95,17 @@ typedef struct rtls_tdx_evidence {
 	uint32_t tdel_data_sz;
 } rtls_tdx_evidence_t;
 
+typedef struct rtls_csv_evidence {
+	uint8_t *vm_id;
+	uint32_t vm_id_sz;
+	uint8_t *vm_version;
+	uint32_t vm_version_sz;
+	uint8_t *measure;
+	uint32_t measure_sz;
+	uint8_t *policy;
+	uint32_t policy_sz;
+} rtls_csv_evidence_t;
+
 /* The public_key, user_data_size and user_data are needed to include in hash. */
 typedef struct ehd {
 	void *public_key;
@@ -104,7 +115,7 @@ typedef struct ehd {
 	char *unhashed;
 } ehd_t;
 
-typedef enum { SGX_ECDSA = 1, TDX_ECDSA } enclave_evidence_type_t;
+typedef enum { SGX_ECDSA = 1, TDX_ECDSA, CSV } enclave_evidence_type_t;
 
 typedef struct rtls_evidence {
 	enclave_evidence_type_t type;
@@ -114,6 +125,7 @@ typedef struct rtls_evidence {
 	union {
 		rtls_sgx_evidence_t sgx;
 		rtls_tdx_evidence_t tdx;
+		rtls_csv_evidence_t csv;
 	};
 } rtls_evidence_t;
 
