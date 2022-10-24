@@ -16,11 +16,7 @@
 #ifdef SGX
 #include "sgx_report.h"
 #endif
-#ifdef TDX
-#include "sgx_quote_4.h"
-#else
 #include "sgx_quote_3.h"
-#endif
 // clang-format on
 #include "per_thread.h"
 #include "openssl.h"
@@ -421,7 +417,7 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		ev.quote = (char *)quote3;
 		ev.quote_size = sizeof(sgx_quote3_t);
 	}
-#ifdef TDX
+#if 0
 	else if (!strncmp(evidence.type, "tdx_ecdsa", sizeof(evidence.type))) {
 		sgx_quote4_t *quote4 = (sgx_quote4_t *)evidence.tdx.quote;
 		ev.tdx.mrseam = (uint8_t *)&(quote4->report_body.mr_seam);
