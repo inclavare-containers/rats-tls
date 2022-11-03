@@ -284,9 +284,9 @@ int openssl_extract_x509_extensions(X509 *crt, attestation_evidence_t *evidence)
 #ifdef SGX
 int verify_certificate(X509_STORE_CTX *ctx)
 {
-	int preverify = 0;
+	int preverify_ok = 0;
 #else
-int verify_certificate(int preverify, X509_STORE_CTX *ctx)
+int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 {
 #endif
 
@@ -357,11 +357,22 @@ int verify_certificate(int preverify, X509_STORE_CTX *ctx)
 		return 0;
 	}
 
-	if (preverify == 0) {
+	if (!preverify_ok) {
 		int err = X509_STORE_CTX_get_error(ctx);
 
+		/*
+		 * A typical and unrecoverable error code is
+		 * X509_V_ERR_CERT_NOT_YET_VALID (9), which implies the
+		 * time-keeping is not consistent between client and server.
+		 */
 		if (err != X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) {
 			RTLS_ERR("Failed on pre-verification due to %d\n", err);
+
+			if (err == X509_V_ERR_CERT_NOT_YET_VALID)
+				RTLS_ERR("Please ensure check the time-keeping "
+					 "is consistent between client and "
+					 "server\n");
+
 			return 0;
 		}
 	}
