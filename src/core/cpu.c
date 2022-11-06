@@ -204,7 +204,7 @@ static uint64_t read_msr(uint32_t reg)
 	uint64_t data;
 	if (pread(fd, &data, sizeof(data), reg) != sizeof(data)) {
 		close(fd);
-		RTLS_ERR("failed to read msr %#x\n", reg);
+		RTLS_DEBUG("failed to read msr %#x\n", reg);
 		return 0;
 	}
 
