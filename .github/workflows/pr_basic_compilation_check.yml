@@ -5,7 +5,11 @@ on: [push, pull_request]
 jobs:
   basic_complication_check:
     # Run all steps in the compilation testing containers
-    container: runetest/compilation-testing:anolis8.4
+    strategy:
+      matrix:
+        tag: [anolis8.4, ubuntu20.04]
+
+    container: runetest/compilation-testing:${{ matrix.tag }}
 
     # Use GitHub-hosted runner Ubuntu 20.04
     runs-on: ubuntu-20.04
