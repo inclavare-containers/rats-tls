@@ -8,7 +8,7 @@ jobs:
     # Run all steps in the compilation testing containers
     strategy:
       matrix:
-        os: [anolis8.4, ubuntu:20.04]
+        os: [anolis8.4, ubuntu20.04]
         
     runs-on: ubuntu-20.04
 
