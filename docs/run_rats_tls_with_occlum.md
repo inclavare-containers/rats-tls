@@ -93,9 +93,12 @@ Type the following commands to create a `Dockerfile`:
 cp /usr/lib/x86_64-linux-gnu/libsgx_pce.signed.so ./
 cp /usr/lib/x86_64-linux-gnu/libsgx_qe3.signed.so ./
 cp /usr/lib/x86_64-linux-gnu/libsgx_qve.signed.so ./
+cp /usr/lib/x86_64-linux-gnu/libsgx_id_enclave.signed.so.1 ./
 
 cat >Dockerfile <<EOF
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y ca-certificates
 
 RUN mkdir -p /run/rune
 WORKDIR /run/rune
@@ -105,6 +108,7 @@ ADD occlum_instance.tar.gz /run/rune
 COPY libsgx_pce.signed.so /usr/lib/x86_64-linux-gnu
 COPY libsgx_qe3.signed.so /usr/lib/x86_64-linux-gnu
 COPY libsgx_qve.signed.so /usr/lib/x86_64-linux-gnu/
+COPY libsgx_id_enclave.signed.so.1 /usr/lib/x86_64-linux-gnu
 
 ENTRYPOINT ["/bin/rats-tls-server"]
 EOF
@@ -126,7 +130,8 @@ Please refer to [guide](https://github.com/inclavare-containers/inclavare-contai
 docker run -it --rm --runtime=rune --net host \
   -e ENCLAVE_TYPE=intelSgx \
   -e ENCLAVE_RUNTIME_PATH=/opt/occlum/build/lib/libocclum-pal.so \
-  -e ENCLAVE_RUNTIME_ARGS=occlum_workspace_server \
+  -e ENCLAVE_RUNTIME_ARGS=occlum_instance \
+  -v /etc/sgx_default_qcnl.conf:/etc/sgx_default_qcnl.conf \
   occlum-app -m
 ```
 
