@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.5.1)
 project(rats-tls)
 set(RTLS_LIB rats_tls)
 set(RTLS_SRC_PATH ${CMAKE_CURRENT_LIST_DIR})
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Software version
 file(STRINGS "VERSION" RATS_TLS_VERSION)
