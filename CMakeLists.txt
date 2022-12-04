@@ -97,6 +97,8 @@ if(SGX)
     include(SGXSSL)
 endif()
 
+include(LibCBOR)
+
 # Subdirectory
 add_subdirectory(src)
 

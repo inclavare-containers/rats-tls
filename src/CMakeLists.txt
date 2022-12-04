@@ -11,6 +11,9 @@ if(SGX)
                              ${CMAKE_BINARY_DIR}/../src/external/sgx-ssl/intel-sgx-ssl/src/intel-sgx-ssl/Linux/package/include
                              )
 endif()
+
+list(APPEND INCLUDE_DIRS ${LIBCBOR_INC_PATH})
+
 include_directories(${INCLUDE_DIRS})
 
 # Add third party and instance directory
@@ -78,6 +81,7 @@ if(SGX)
                             verifier_nullverifier
                             verifier_sgx_ecdsa_qve
                             verifier_sgx_la
+                            libcbor
                             )
 endif()
 
@@ -87,7 +91,8 @@ if(SGX)
     add_dependencies(${RTLS_LIB} ${DEPEND_TRUSTED_LIBS})
 else()
     add_library(${RTLS_LIB} SHARED ${SOURCES})
-    target_link_libraries(${RTLS_LIB} ${RATS_TLS_LDFLAGS})
+    add_dependencies(${RTLS_LIB} libcbor)
+    target_link_libraries(${RTLS_LIB} ${RATS_TLS_LDFLAGS} ${LIBCBOR_LIB_FILES})
     set_target_properties(${RTLS_LIB} PROPERTIES VERSION ${VERSION} SOVERSION ${VERSION_MAJOR})
 endif()
 
