@@ -25,19 +25,16 @@
 #ifdef SGX
 #include "rtls_t.h"
 
-sgx_status_t sgx_generate_evidence(uint8_t *hash, sgx_report_t *app_report)
+sgx_status_t sgx_generate_evidence(sgx_report_data_t *report_data, sgx_report_t *app_report)
 {
-	sgx_report_data_t report_data;
-	assert(sizeof(report_data.d) >= SHA256_HASH_SIZE);
-	memset(&report_data, 0, sizeof(sgx_report_data_t));
-	memcpy(report_data.d, hash, SHA256_HASH_SIZE);
-
 	sgx_target_info_t qe_target_info;
 	memset(&qe_target_info, 0, sizeof(sgx_target_info_t));
-	ocall_get_target_info(&qe_target_info);
+	sgx_status_t sgx_error = ocall_get_target_info(&qe_target_info);
+	if (SGX_SUCCESS != sgx_error)
+		return sgx_error;
 
-	/* Generate the report for the app_enclave */
-	sgx_status_t sgx_error = sgx_create_report(&qe_target_info, &report_data, app_report);
+	/* Generate the report for the app_rats */
+	sgx_error = sgx_create_report(&qe_target_info, report_data, app_report);
 	return sgx_error;
 }
 #elif defined(OCCLUM)
@@ -65,9 +62,18 @@ int generate_quote(int sgx_fd, sgxioc_gen_dcap_quote_arg_t *gen_quote_arg)
 enclave_attester_err_t sgx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 						  attestation_evidence_t *evidence,
 						  rats_tls_cert_algo_t algo, uint8_t *hash,
-						  __attribute__((unused)) uint32_t hash_len)
+						  uint32_t hash_len)
 {
 	RTLS_DEBUG("ctx %p, evidence %p, algo %d, hash %p\n", ctx, evidence, algo, hash);
+
+	sgx_report_data_t report_data;
+	if (sizeof(report_data.d) < hash_len) {
+		RTLS_ERR("hash_len(%zu) shall be smaller than user-data filed size (%zu)\n",
+			 hash_len, sizeof(report_data.d));
+		return ENCLAVE_ATTESTER_ERR_INVALID;
+	}
+	memset(&report_data, 0, sizeof(sgx_report_data_t));
+	memcpy(report_data.d, hash, hash_len);
 
 #ifdef OCCLUM
 	int sgx_fd;
@@ -75,12 +81,6 @@ enclave_attester_err_t sgx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 		RTLS_ERR("failed to open /dev/sgx\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
-
-	sgx_report_data_t report_data = {
-		0,
-	};
-	assert(sizeof(report_data.d) > SHA256_HASH_SIZE);
-	memcpy(report_data.d, hash, SHA256_HASH_SIZE);
 
 	uint32_t quote_size = 0;
 	if (ioctl(sgx_fd, SGXIOC_GET_DCAP_QUOTE_SIZE, &quote_size) < 0) {
@@ -98,9 +98,8 @@ enclave_attester_err_t sgx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
 #else
-
 	sgx_report_t app_report;
-	sgx_status_t status = sgx_generate_evidence(hash, &app_report);
+	sgx_status_t status = sgx_generate_evidence(&report_data, &app_report);
 	if (status != SGX_SUCCESS) {
 		RTLS_ERR("failed to generate evidence %#x\n", status);
 		return SGX_ECDSA_ATTESTER_ERR_CODE((int)status);
