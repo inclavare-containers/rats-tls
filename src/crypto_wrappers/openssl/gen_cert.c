@@ -14,9 +14,8 @@
 
 static bool using_cert_nonce = false;
 
-static int x509_extension_add(X509 *cert, const char *oid, const void *data, size_t data_len)
+static int x509_extension_add_common(X509 *cert)
 {
-	ASN1_OCTET_STRING *octet = NULL;
 	int ret = 0;
 	X509V3_CTX ctx;
 
@@ -61,6 +60,22 @@ static int x509_extension_add(X509 *cert, const char *oid, const void *data, siz
 	}
 
 	X509_EXTENSION_free(ext);
+	ext = NULL;
+
+	ret = 1;
+
+err:
+	if (ext)
+		X509_EXTENSION_free(ext);
+
+	return ret;
+}
+
+static int x509_extension_add(X509 *cert, const char *oid, const void *data, size_t data_len)
+{
+	ASN1_OCTET_STRING *octet = NULL;
+	int ret = 0;
+	X509_EXTENSION *ext = NULL;
 
 	int nid = OBJ_txt2nid(oid);
 	if (nid == NID_undef) {
@@ -174,6 +189,9 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	ret = -CRYPTO_WRAPPER_ERR_PUB_KEY_DECODE;
 
 	RTLS_DEBUG("evidence type '%s' requested\n", cert_info->evidence.type);
+
+	if (!x509_extension_add_common(cert))
+		goto err;
 
 	if (!strcmp(cert_info->evidence.type, "sgx_epid")) {
 		attestation_verification_report_t *epid = &cert_info->evidence.epid;
