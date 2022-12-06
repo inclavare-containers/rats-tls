@@ -360,21 +360,23 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 	if (!preverify_ok) {
 		int err = X509_STORE_CTX_get_error(ctx);
 
+		/* We tolerate the case where the passed certificate is a self-signed certificate. */
+		if (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
+			return SSL_SUCCESS;
+
 		/*
 		 * A typical and unrecoverable error code is
 		 * X509_V_ERR_CERT_NOT_YET_VALID (9), which implies the
 		 * time-keeping is not consistent between client and server.
 		 */
-		if (err != X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) {
-			RTLS_ERR("Failed on pre-verification due to %d\n", err);
+		RTLS_ERR("Failed on pre-verification due to %d\n", err);
 
-			if (err == X509_V_ERR_CERT_NOT_YET_VALID)
-				RTLS_ERR("Please ensure check the time-keeping "
-					 "is consistent between client and "
-					 "server\n");
+		if (err == X509_V_ERR_CERT_NOT_YET_VALID)
+			RTLS_ERR("Please ensure check the time-keeping "
+				 "is consistent between client and "
+				 "server\n");
 
-			return 0;
-		}
+		return 0;
 	}
 
 	uint8_t hash[EVP_MAX_MD_SIZE];
