@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <rats-tls/api.h>
 #include <rats-tls/log.h>
+#include <rats-tls/claim.h>
 
 #define DEFAULT_PORT 1234
 #define DEFAULT_IP   "127.0.0.1"
@@ -81,6 +82,21 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 #endif
 
 #ifndef SGX
+
+int user_callback(void *args)
+{
+	rtls_evidence_t *ev = (rtls_evidence_t *)args;
+
+	printf("verify_callback called, claims %p, claims_size %zu, args %p\n", ev->custom_claims,
+	       ev->custom_claims_length, args);
+	for (size_t i = 0; i < ev->custom_claims_length; ++i) {
+		printf("custom_claims[%zu] -> name: '%s' value_size: %zu value: '%.*s'\n", i,
+		       ev->custom_claims[i].name, ev->custom_claims[i].value_size,
+		       (int)ev->custom_claims[i].value_size, ev->custom_claims[i].value);
+	}
+	return 1;
+}
+
 int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 			    char *verifier_type, char *tls_type, char *crypto_type, bool mutual,
 			    bool debug_enclave, char *ip, int port, bool verdictd)
@@ -131,7 +147,7 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 		return -1;
 	}
 
-	ret = rats_tls_set_verification_callback(&handle, NULL);
+	ret = rats_tls_set_verification_callback(&handle, user_callback);
 	if (ret != RATS_TLS_ERR_NONE) {
 		RTLS_ERR("Failed to set verification callback %#x\n", ret);
 		return -1;

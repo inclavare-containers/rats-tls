@@ -14,6 +14,8 @@ extern crypto_wrapper_err_t nullcrypto_gen_privkey(crypto_wrapper_ctx_t *ctx,
 						   unsigned int *privkey_len);
 extern crypto_wrapper_err_t nullcrypto_gen_pubkey_hash(crypto_wrapper_ctx_t *, rats_tls_cert_algo_t,
 						       uint8_t *);
+extern crypto_wrapper_err_t nullcrypto_gen_sha256(crypto_wrapper_ctx_t *ctx, uint8_t *data,
+						  size_t size, uint8_t *hash);
 extern crypto_wrapper_err_t nullcrypto_gen_cert(crypto_wrapper_ctx_t *, rats_tls_cert_algo_t algo,
 						rats_tls_cert_info_t *);
 extern crypto_wrapper_err_t nullcrypto_cleanup(crypto_wrapper_ctx_t *);
@@ -26,6 +28,7 @@ static crypto_wrapper_opts_t nullcrypto_opts = {
 	.init = nullcrypto_init,
 	.gen_privkey = nullcrypto_gen_privkey,
 	.gen_pubkey_hash = nullcrypto_gen_pubkey_hash,
+	.gen_sha256 = nullcrypto_gen_sha256,
 	.gen_cert = nullcrypto_gen_cert,
 	.cleanup = nullcrypto_cleanup,
 };

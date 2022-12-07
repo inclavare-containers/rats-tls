@@ -8,6 +8,7 @@
 #include <rats-tls/log.h>
 #include <rats-tls/crypto_wrapper.h>
 #include <rats-tls/oid.h>
+#include "internal/dice.h"
 #include "openssl.h"
 
 #define CERT_SERIAL_NUMBER 1
@@ -71,7 +72,8 @@ err:
 	return ret;
 }
 
-static int x509_extension_add(X509 *cert, const char *oid, const void *data, size_t data_len)
+static int x509_extension_add(X509 *cert, const char *oid, bool critical, const void *data,
+			      size_t data_len)
 {
 	ASN1_OCTET_STRING *octet = NULL;
 	int ret = 0;
@@ -92,7 +94,7 @@ static int x509_extension_add(X509 *cert, const char *oid, const void *data, siz
 
 	ASN1_OCTET_STRING_set(octet, data, data_len);
 
-	ext = X509_EXTENSION_create_by_NID(NULL, nid, 0, octet);
+	ext = X509_EXTENSION_create_by_NID(NULL, nid, critical, octet);
 	if (!ext) {
 		RTLS_ERR("failed to create extension\n");
 		goto err;
@@ -164,8 +166,8 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 		X509_gmtime_adj(X509_get_notAfter(cert), (long)3600 * 24 * 365 * 1);
 	} else {
 		/* WORKAROUND: with nonce mechanism, the validity of cert can be fixed within a larger range. */
-		const char timestr_notBefore[] = "19700101000001Z"; 
-		const char timestr_notAfter[] = "20491231235959Z"; 
+		const char timestr_notBefore[] = "19700101000001Z";
+		const char timestr_notAfter[] = "20491231235959Z";
 		ASN1_TIME_set_string(X509_get_notBefore(cert), timestr_notBefore);
 		ASN1_TIME_set_string(X509_get_notAfter(cert), timestr_notAfter);
 	}
@@ -186,60 +188,25 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	if (!X509_set_issuer_name(cert, name))
 		goto err;
 
-	ret = -CRYPTO_WRAPPER_ERR_PUB_KEY_DECODE;
-
-	RTLS_DEBUG("evidence type '%s' requested\n", cert_info->evidence.type);
+	ret = -CRYPTO_WRAPPER_ERR_CERT_EXTENSION;
 
 	if (!x509_extension_add_common(cert))
 		goto err;
 
-	if (!strcmp(cert_info->evidence.type, "sgx_epid")) {
-		attestation_verification_report_t *epid = &cert_info->evidence.epid;
-
-		if (!x509_extension_add(cert, ias_response_body_oid, epid->ias_report,
-					epid->ias_report_len))
+	/* Add evidence extension */
+	if (cert_info->evidence_buffer_size) {
+		/* The DiceTaggedEvidence extension criticality flag SHOULD be marked critical. */
+		if (!x509_extension_add(cert, TCG_DICE_TAGGED_EVIDENCE_OID, true,
+					cert_info->evidence_buffer,
+					cert_info->evidence_buffer_size) != RATS_TLS_ERR_NONE)
 			goto err;
+	}
 
-		if (!x509_extension_add(cert, ias_root_cert_oid, epid->ias_sign_ca_cert,
-					epid->ias_sign_ca_cert_len))
-			goto err;
-
-		if (!x509_extension_add(cert, ias_leaf_cert_oid, epid->ias_sign_cert,
-					epid->ias_sign_cert_len))
-			goto err;
-
-		if (!x509_extension_add(cert, ias_report_signature_oid, epid->ias_report_signature,
-					epid->ias_report_signature_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sgx_ecdsa")) {
-		ecdsa_attestation_evidence_t *ecdsa = &cert_info->evidence.ecdsa;
-
-		if (!x509_extension_add(cert, ecdsa_quote_oid, ecdsa->quote, ecdsa->quote_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sgx_la")) {
-		la_attestation_evidence_t *la = &cert_info->evidence.la;
-
-		if (!x509_extension_add(cert, la_report_oid, la->report, la->report_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "tdx_ecdsa")) {
-		tdx_attestation_evidence_t *tdx = &cert_info->evidence.tdx;
-
-		if (!x509_extension_add(cert, tdx_quote_oid, tdx->quote, tdx->quote_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sev_snp")) {
-		snp_attestation_evidence_t *snp = &cert_info->evidence.snp;
-
-		if (!x509_extension_add(cert, snp_report_oid, snp->report, snp->report_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "sev")) {
-		sev_attestation_evidence_t *sev = &cert_info->evidence.sev;
-
-		if (!x509_extension_add(cert, sev_report_oid, sev->report, sev->report_len))
-			goto err;
-	} else if (!strcmp(cert_info->evidence.type, "csv")) {
-		csv_attestation_evidence_t *csv = &cert_info->evidence.csv;
-
-		if (!x509_extension_add(cert, csv_report_oid, csv->report, csv->report_len))
+	/* Add endorsements extension */
+	if (cert_info->endorsements_buffer_size) {
+		if (!x509_extension_add(cert, TCG_DICE_ENDORSEMENT_MANIFEST_OID, true,
+					cert_info->endorsements_buffer,
+					cert_info->endorsements_buffer_size) != RATS_TLS_ERR_NONE)
 			goto err;
 	}
 

@@ -8,8 +8,6 @@
 #include <rats-tls/crypto_wrapper.h>
 #include "openssl.h"
 
-#define RSA_PUBKEY_3072_RAW_LEN 398
-
 crypto_wrapper_err_t openssl_gen_pubkey_hash(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
 					     uint8_t *hash)
 {
@@ -22,6 +20,7 @@ crypto_wrapper_err_t openssl_gen_pubkey_hash(crypto_wrapper_ctx_t *ctx, rats_tls
 
 	octx = ctx->crypto_private;
 
+	/* Calculate hash of SubjectPublicKeyInfo object */
 	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
 		int len = i2d_EC_PUBKEY(octx->eckey, NULL);
 		unsigned char buffer[len];
@@ -37,13 +36,11 @@ crypto_wrapper_err_t openssl_gen_pubkey_hash(crypto_wrapper_ctx_t *ctx, rats_tls
 			hash[28], hash[29], hash[30], hash[31]);
 
 	} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
-		int len = i2d_RSAPublicKey(octx->key, NULL);
+		int len = i2d_RSA_PUBKEY(octx->key, NULL);
 		unsigned char buffer[len];
 		unsigned char *p = buffer;
 
-		len = i2d_RSAPublicKey(octx->key, &p);
-		if (len != RSA_PUBKEY_3072_RAW_LEN)
-			return -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
+		len = i2d_RSA_PUBKEY(octx->key, &p);
 
 		SHA256(buffer, len, hash);
 
