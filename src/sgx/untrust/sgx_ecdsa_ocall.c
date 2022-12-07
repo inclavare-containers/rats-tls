@@ -54,9 +54,7 @@ enclave_attester_err_t ocall_qe_get_quote(sgx_report_t *report, uint32_t quote_s
 enclave_verifier_err_t ocall_ecdsa_verify_evidence(__attribute__((unused))
 						   enclave_verifier_ctx_t *ctx,
 						   sgx_enclave_id_t enclave_id, const char *name,
-						   attestation_evidence_t *evidence,
-						   __attribute__((unused)) uint32_t evidence_len,
-						   uint8_t *hash, uint32_t hash_len)
+						   sgx_quote3_t *pquote, uint32_t quote_size)
 {
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
 	uint32_t supplemental_data_size = 0;
@@ -70,25 +68,6 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(__attribute__((unused))
 	quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
 	sgx_ql_qe_report_info_t *qve_report_info = NULL;
 	uint8_t rand_nonce[16];
-
-	sgx_quote3_t *pquote = (sgx_quote3_t *)malloc(8192);
-	if (!pquote) {
-		RTLS_ERR("failed to malloc sgx quote3 data space.\n");
-		return -ENCLAVE_VERIFIER_ERR_NO_MEM;
-	}
-
-	memcpy(pquote, evidence->ecdsa.quote, evidence->ecdsa.quote_len);
-
-	uint32_t quote_size = (uint32_t)sizeof(sgx_quote3_t) + pquote->signature_data_len;
-	RTLS_DEBUG("quote size is %d, quote signature_data_len is %d\n", quote_size,
-		   pquote->signature_data_len);
-
-	/* First verify the hash value */
-	if (memcmp(hash, pquote->report_body.report_data.d, hash_len) != 0) {
-		RTLS_ERR("unmatched hash value in evidence.\n");
-		err = -ENCLAVE_VERIFIER_ERR_INVALID;
-		goto errout;
-	}
 
 	/* sgx_ecdsa_qve instance re-uses this code and thus we need to distinguish
 	 * it from sgx_ecdsa instance.
@@ -141,7 +120,7 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(__attribute__((unused))
 
 	current_time = time(NULL);
 
-	dcap_ret = sgx_qv_verify_quote(evidence->ecdsa.quote, (uint32_t)quote_size, NULL,
+	dcap_ret = sgx_qv_verify_quote(pquote, (uint32_t)quote_size, NULL,
 				       current_time, &collateral_expiration_status,
 				       &quote_verification_result, qve_report_info,
 				       supplemental_data_size, p_supplemental_data);
@@ -155,7 +134,7 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(__attribute__((unused))
 
 	if (!strcmp(name, "sgx_ecdsa_qve")) {
 		sgx_ret = sgx_tvl_verify_qve_report_and_identity(
-			enclave_id, &verify_qveid_ret, evidence->ecdsa.quote, (uint32_t)quote_size,
+			enclave_id, &verify_qveid_ret, pquote, (uint32_t)quote_size,
 			qve_report_info, current_time, collateral_expiration_status,
 			quote_verification_result, p_supplemental_data, supplemental_data_size,
 			qve_isvsvn_threshold);
@@ -206,7 +185,6 @@ errret:
 	free(p_supplemental_data);
 errout:
 	free(qve_report_info);
-	free(pquote);
 
 	return err;
 }
