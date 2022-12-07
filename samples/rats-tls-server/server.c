@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <rats-tls/api.h>
 #include <rats-tls/log.h>
+#include <rats-tls/claim.h>
 
 #define DEFAULT_PORT 1234
 #define DEFAULT_IP   "127.0.0.1"
@@ -141,6 +142,15 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 	strcpy(conf.verifier_type, verifier_type);
 	strcpy(conf.tls_type, tls_type);
 	strcpy(conf.crypto_type, crypto_type);
+
+	/* Optional: Set some user-defined custom claims, which will be embedded in the certificate. */
+	claim_t custom_claims[2] = {
+		{ .name = "key_0", .value = (uint8_t *)"value_0", .value_size = sizeof("value_0") },
+		{ .name = "key_1", .value = (uint8_t *)"value_1", .value_size = sizeof("value_1") },
+	};
+	conf.custom_claims = (claim_t *)custom_claims;
+	conf.custom_claims_length = 2;
+
 	conf.cert_algo = RATS_TLS_CERT_ALGO_DEFAULT;
 	conf.flags |= RATS_TLS_CONF_FLAGS_SERVER;
 	if (mutual)

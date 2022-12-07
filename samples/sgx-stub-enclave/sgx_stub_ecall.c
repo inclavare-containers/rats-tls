@@ -32,6 +32,14 @@ int ecall_rtls_server_startup(sgx_enclave_id_t enclave_id, rats_tls_log_level_t 
 	conf.flags = flags;
 	conf.cert_algo = RATS_TLS_CERT_ALGO_DEFAULT;
 
+	/* Optional: Set some user-defined custom claims, which will be embedded in the certificate. */
+	claim_t custom_claims[2] = {
+		{ .name = "key_0", .value = (uint8_t *)"value_0", .value_size = sizeof("value_0") },
+		{ .name = "key_1", .value = (uint8_t *)"value_1", .value_size = sizeof("value_1") },
+	};
+	conf.custom_claims = (claim_t *)custom_claims;
+	conf.custom_claims_length = 2;
+
 	int64_t sockfd;
 	int sgx_status = ocall_socket(&sockfd, RTLS_AF_INET, RTLS_SOCK_STREAM, 0);
 	if (sgx_status != SGX_SUCCESS || sockfd < 0) {
@@ -137,6 +145,20 @@ err:
 	return -1;
 }
 
+int user_callback(void *args)
+{
+	rtls_evidence_t *ev = (rtls_evidence_t *)args;
+
+	printf("verify_callback called, claims %p, claims_size %zu, args %p\n", ev->custom_claims,
+	       ev->custom_claims_length, args);
+	for (size_t i = 0; i < ev->custom_claims_length; ++i) {
+		printf("custom_claims[%zu] -> name: '%s' value_size: %zu value: '%.*s'\n", i,
+		       ev->custom_claims[i].name, ev->custom_claims[i].value_size,
+		       (int)ev->custom_claims[i].value_size, ev->custom_claims[i].value);
+	}
+	return 1;
+}
+
 int ecall_rtls_client_startup(sgx_enclave_id_t enclave_id, rats_tls_log_level_t log_level,
 			      char *attester_type, char *verifier_type, char *tls_type,
 			      char *crypto_type, unsigned long flags, uint32_t s_ip,
@@ -188,7 +210,7 @@ int ecall_rtls_client_startup(sgx_enclave_id_t enclave_id, rats_tls_log_level_t 
 		return -1;
 	}
 
-	ret = rats_tls_set_verification_callback(&handle, NULL);
+	ret = rats_tls_set_verification_callback(&handle, user_callback);
 	if (ret != RATS_TLS_ERR_NONE) {
 		RTLS_ERR("Failed to set verification callback %#x\n", ret);
 		return -1;

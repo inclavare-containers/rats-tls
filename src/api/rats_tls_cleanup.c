@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <rats-tls/api.h>
 #include <rats-tls/log.h>
+#include <rats-tls/claim.h>
 
 #include "internal/core.h"
 #include "internal/attester.h"
@@ -24,6 +25,10 @@ rats_tls_err_t rats_tls_cleanup(rats_tls_handle handle)
 	    !handle->attester->opts->cleanup || !handle->verifier || !handle->verifier->opts ||
 	    !handle->verifier->opts->cleanup)
 		return -RATS_TLS_ERR_INVALID;
+
+	if (ctx->config.custom_claims) {
+		free_claims_list(ctx->config.custom_claims, ctx->config.custom_claims_length);
+	}
 
 	tls_wrapper_err_t err = handle->tls_wrapper->opts->cleanup(handle->tls_wrapper);
 	if (err != TLS_WRAPPER_ERR_NONE) {

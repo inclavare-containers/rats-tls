@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <rats-tls/err.h>
+#include <rats-tls/claim.h>
 #include <openssl/opensslv.h>
 
 #define TLS_TYPE_NAME_SIZE		32
@@ -56,6 +57,8 @@ typedef struct {
 	char crypto_type[CRYPTO_TYPE_NAME_SIZE];
 	rats_tls_cert_algo_t cert_algo;
 	unsigned long long enclave_id;
+	claim_t *custom_claims;
+	size_t custom_claims_length;
 
 	/* FIXME: SGX EPID quote type specific parameters */
 	struct {
@@ -119,6 +122,8 @@ typedef enum { SGX_ECDSA = 1, TDX_ECDSA, CSV } enclave_evidence_type_t;
 
 typedef struct rtls_evidence {
 	enclave_evidence_type_t type;
+	claim_t *custom_claims;
+	size_t custom_claims_length;
 	ehd_t ehd;
 	int quote_size;
 	char *quote;

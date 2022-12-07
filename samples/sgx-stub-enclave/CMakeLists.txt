@@ -9,6 +9,7 @@ if(BUILD_SAMPLES)
                      )
 
     set(LIBRARY_DIRS ${INTEL_SGXSSL_LIB_PATH}
+                     ${LIBCBOR_LIB_PATH}
                      ${CMAKE_BINARY_DIR}/src
                      ${CMAKE_BINARY_DIR}/src/crypto_wrappers/nullcrypto
                      ${CMAKE_BINARY_DIR}/src/crypto_wrappers/openssl
@@ -65,6 +66,7 @@ set(DEPEND_TRUSTED_LIBS crypto_wrapper_nullcrypto
                         verifier_sgx_la
                         verifier_sgx_ecdsa_qve
                         rats_tls
+                        cbor
                         )
 
 add_enclave_library(sgx_stub_enclave SRCS ${E_SRCS} EDL ${EDLS} TRUSTED_LIBS ${DEPEND_TRUSTED_LIBS} EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS} LDSCRIPT ${LDS})

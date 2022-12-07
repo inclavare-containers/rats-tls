@@ -13,6 +13,7 @@
 #include <rats-tls/oid.h>
 #include <rats-tls/csv.h>
 #include <internal/core.h>
+#include <internal/dice.h>
 // clang-format off
 #ifdef SGX
 #include "sgx_report.h"
@@ -49,31 +50,8 @@ done:
 	return result;
 }
 
-static crypto_wrapper_err_t calc_pubkey_hash(X509 *cert, uint8_t *hash, int *hash_size)
+static crypto_wrapper_err_t calc_pubkey_sha256(X509 *cert, uint8_t *hash)
 {
-	int hash_algo;
-	int pkey_algo;
-	if (!X509_get_signature_info(cert, &hash_algo, &pkey_algo, NULL, NULL)) {
-		RTLS_ERR("Failed on retrieving information about the signature of certificate\n");
-		return -CRYPTO_WRAPPER_ERR_INVALID;
-	}
-
-	if (hash_algo == NID_undef) {
-		RTLS_ERR("Invalid signing digest algorithm\n");
-		return -CRYPTO_WRAPPER_ERR_INVALID;
-	}
-
-	const EVP_MD *md = EVP_get_digestbynid(hash_algo);
-	if (!md) {
-		RTLS_ERR("Invalid signing digest algorithm for EVP_MD\n");
-		return -CRYPTO_WRAPPER_ERR_INVALID;
-	}
-
-	if (pkey_algo == NID_undef) {
-		RTLS_ERR("Invalid public key algorithm\n");
-		return -CRYPTO_WRAPPER_ERR_INVALID;
-	}
-
 	EVP_PKEY *pkey = X509_get_pubkey(cert);
 	if (!pkey) {
 		RTLS_ERR("Unable to decode the public key from certificate\n");
@@ -87,18 +65,13 @@ static crypto_wrapper_err_t calc_pubkey_hash(X509 *cert, uint8_t *hash, int *has
 	unsigned char *p = buf;
 	len = i2d_PUBKEY(pkey, &p);
 
-	if (!EVP_Digest(buf, len, hash, NULL, md, NULL)) {
-		RTLS_ERR("Failed to hash the public key\n");
-		err = -CRYPTO_WRAPPER_ERR_INVALID;
-	}
-
-	*hash_size = EVP_MD_size(md);
+	SHA256(buf, len, hash);
 
 	// clang-format off
 	RTLS_DEBUG("The hash of public key [%d] %02x%02x%02x%02x%02x%02x%02x%02x...%02x%02x%02x%02x\n",
-		   len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
-		   hash[*hash_size - 4], hash[*hash_size - 3], hash[*hash_size - 2],
-		   hash[*hash_size - 1]);
+		   SHA256_HASH_SIZE, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
+		   hash[SHA256_HASH_SIZE - 4], hash[SHA256_HASH_SIZE - 3], hash[SHA256_HASH_SIZE - 2],
+		   hash[SHA256_HASH_SIZE - 1]);
 	// clang-format on
 
 	EVP_PKEY_free(pkey);
@@ -106,56 +79,14 @@ static crypto_wrapper_err_t calc_pubkey_hash(X509 *cert, uint8_t *hash, int *has
 	return err;
 }
 
-static int find_oid(X509 *crt, const char *oid)
-{
-	// clang-format off
-	const STACK_OF(X509_EXTENSION) *extensions;
-	// clang-format on
-
-	/* Set a pointer to the stack of extensions (possibly NULL) */
-	if (!(extensions = X509_get0_extensions(crt))) {
-		RTLS_DEBUG("there are no extensions in X509 cert\n");
-		return 0;
-	}
-
-	/* Get the number of extensions (possibly zero) */
-	int num_extensions = sk_X509_EXTENSION_num(extensions);
-
-	/* Find the certificate with this OID */
-	for (int i = 0; i < num_extensions; ++i) {
-		X509_EXTENSION *ext;
-		ASN1_OBJECT *obj;
-		char oid_buf[128];
-
-		/* Get the i-th extension from the stack */
-		if (!(ext = sk_X509_EXTENSION_value(extensions, i))) {
-			RTLS_ERR("failed to get X509 extension value\n");
-			continue;
-		}
-
-		/* Get the OID */
-		if (!(obj = X509_EXTENSION_get_object(ext))) {
-			RTLS_ERR("failed to get the OID from object\n");
-			continue;
-		}
-
-		/* Get the string name of the OID */
-		if (!OBJ_obj2txt(oid_buf, sizeof(oid_buf), obj, 1)) {
-			RTLS_ERR("failed to get string name of the oid\n");
-			continue;
-		}
-
-		if (!strcmp((const char *)oid_buf, oid))
-			return SSL_SUCCESS;
-	}
-
-	return 0;
-}
-
-static int find_extension_from_cert(X509 *cert, const char *oid, uint8_t *data, uint32_t *size)
+static int find_extension_from_cert(X509 *cert, const char *oid, uint8_t **data_out,
+				    size_t *data_len_out, bool optional)
 {
 	int result = SSL_SUCCESS;
 	const STACK_OF(X509_EXTENSION) * extensions;
+
+	*data_out = NULL;
+	*data_len_out = 0;
 
 	/* Set a pointer to the stack of extensions (possibly NULL) */
 	if (!(extensions = X509_get0_extensions(cert))) {
@@ -200,206 +131,148 @@ static int find_extension_from_cert(X509 *cert, const char *oid, uint8_t *data, 
 				return 0;
 			}
 
-			if ((uint32_t)str->length > *size) {
-				if (data)
-					RTLS_DEBUG("buffer is too small (%d-byte vs %d-byte)\n",
-						   (uint32_t)str->length, *size);
-
-				*size = (uint32_t)str->length;
-			}
-			if (data) {
-				rtls_memcpy_s(data, *size, str->data, (uint32_t)str->length);
-				*size = (uint32_t)str->length;
-				result = SSL_SUCCESS;
+			*data_out = malloc(str->length);
+			if (!*data_out) {
+				RTLS_ERR("failed to allocate memory for data from extension\n");
+				result = 0;
 				goto done;
 			}
+			rtls_memcpy_s(*data_out, str->length, str->data, str->length);
+			*data_len_out = str->length;
+			result = SSL_SUCCESS;
+			goto done;
 		}
 	}
 
-	result = 0;
+	/* If this extension is optional, return success */
+	if (!optional)
+		result = 0;
 
 done:
 	return result;
 }
 
-int openssl_extract_x509_extensions(X509 *crt, attestation_evidence_t *evidence)
+static tls_wrapper_err_t
+verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
+		       uint8_t *evidence_buffer /* optional, for nullverifier */,
+		       size_t evidence_buffer_size,
+		       __attribute__((unused)) uint8_t *endorsements_buffer /* optional */,
+		       __attribute__((unused)) size_t endorsements_buffer_size,
+		       uint8_t *pubkey_hash /* Assume it is sha256 hash */)
 {
-	if (!strcmp(evidence->type, "sgx_epid")) {
-		evidence->epid.ias_report_len = sizeof(evidence->epid.ias_report);
-		int rc = find_extension_from_cert(crt, ias_response_body_oid,
-						  evidence->epid.ias_report,
-						  &evidence->epid.ias_report_len);
-		if (rc != SSL_SUCCESS)
-			return rc;
+	tls_wrapper_err_t ret;
 
-		evidence->epid.ias_sign_ca_cert_len = sizeof(evidence->epid.ias_sign_ca_cert);
-		rc = find_extension_from_cert(crt, ias_root_cert_oid,
-					      evidence->epid.ias_sign_ca_cert,
-					      &evidence->epid.ias_sign_ca_cert_len);
-		if (rc != SSL_SUCCESS)
-			return rc;
-
-		evidence->epid.ias_sign_cert_len = sizeof(evidence->epid.ias_sign_cert);
-		rc = find_extension_from_cert(crt, ias_leaf_cert_oid, evidence->epid.ias_sign_cert,
-					      &evidence->epid.ias_sign_cert_len);
-		if (rc != SSL_SUCCESS)
-			return rc;
-
-		evidence->epid.ias_report_signature_len =
-			sizeof(evidence->epid.ias_report_signature);
-		rc = find_extension_from_cert(crt, ias_report_signature_oid,
-					      evidence->epid.ias_report_signature,
-					      &evidence->epid.ias_report_signature_len);
-		return rc;
-	} else if (!strcmp(evidence->type, "sgx_ecdsa")) {
-		evidence->ecdsa.quote_len = sizeof(evidence->ecdsa.quote);
-		return find_extension_from_cert(crt, ecdsa_quote_oid, evidence->ecdsa.quote,
-						&evidence->ecdsa.quote_len);
-	} else if (!strcmp(evidence->type, "tdx_ecdsa")) {
-		evidence->tdx.quote_len = sizeof(evidence->tdx.quote);
-		return find_extension_from_cert(crt, tdx_quote_oid, evidence->tdx.quote,
-						&evidence->tdx.quote_len);
-	} else if (!strcmp(evidence->type, "sgx_la")) {
-		evidence->la.report_len = sizeof(evidence->la.report);
-		return find_extension_from_cert(crt, la_report_oid, evidence->la.report,
-						&evidence->la.report_len);
-	} else if (!strcmp(evidence->type, "sev_snp")) {
-		evidence->snp.report_len = sizeof(evidence->snp.report);
-		return find_extension_from_cert(crt, snp_report_oid, evidence->snp.report,
-						&evidence->snp.report_len);
-	} else if (!strcmp(evidence->type, "sev")) {
-		evidence->sev.report_len = sizeof(evidence->sev.report);
-		return find_extension_from_cert(crt, sev_report_oid, evidence->sev.report,
-						&evidence->sev.report_len);
-	} else if (!strcmp(evidence->type, "csv")) {
-		evidence->csv.report_len = sizeof(evidence->csv.report);
-		return find_extension_from_cert(crt, csv_report_oid, evidence->csv.report,
-						&evidence->csv.report_len);
-	} else
-		RTLS_WARN("Unhandled evidence type %s\n", evidence->type);
-
-	return SSL_SUCCESS;
-}
-
-int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
-{
-	RTLS_DEBUG(
-		"verify_certificate preverify_ok: %d, ctx: %p, X509_STORE_CTX_get_error(ctx): %d\n",
-		preverify_ok, ctx, X509_STORE_CTX_get_error(ctx));
-
-/*
-* This code allows you to use command "openssl x509 -in /tmp/cert.der -inform der -text -noout"
-* to dump the content of TLS certificate with evidence extension.
-*/
-#if 0
-#ifndef SGX
-	X509 *crt = X509_STORE_CTX_get_current_cert(ctx);
-	if (!crt) {
-		RTLS_ERR("failed to retrieve certificate\n");
-		return 0;
-	}
-
-	/* Convert the certificate into a buffer in DER format */
-	int der_cert_size = i2d_X509(crt, NULL);
-	unsigned char *der_buf = (unsigned char *)malloc((size_t)der_cert_size);
-	if (!der_buf) {
-		RTLS_ERR("failed to allocate buffer (%d-byte) for certificate\n", der_cert_size);
-		return 0;
-	}
-
-	unsigned char *der_cert = der_buf;
-	der_cert_size = i2d_X509(crt, &der_cert);
-
-	/* Dump certificate */
-	FILE *fp = fopen("/tmp/cert.der", "wb");
-	fwrite(der_buf, der_cert_size, 1, fp);
-	fclose(fp);
-
-	free(der_buf);
-#endif
-#endif
-
-	X509_STORE *cert_store = X509_STORE_CTX_get0_store(ctx);
-	int *ex_data = per_thread_getspecific();
-	if (!ex_data) {
-		RTLS_ERR("failed to get ex_data\n");
-		return 0;
-	}
-
-	tls_wrapper_ctx_t *tls_ctx = X509_STORE_get_ex_data(cert_store, *ex_data);
-	if (!tls_ctx) {
-		RTLS_ERR("failed to get tls_wrapper_ctx pointer\n");
-		return 0;
-	}
-
-	X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
-	if (!cert) {
-		RTLS_ERR("failed to get cert from x509 context!\n");
-		return 0;
-	}
-
-	if (!preverify_ok) {
-		int err = X509_STORE_CTX_get_error(ctx);
-
-		/* We tolerate the case where the passed certificate is a self-signed certificate. */
-		if (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
-			return SSL_SUCCESS;
-
-		/*
-		 * A typical and unrecoverable error code is
-		 * X509_V_ERR_CERT_NOT_YET_VALID (9), which implies the
-		 * time-keeping is not consistent between client and server.
-		 */
-		RTLS_ERR("Failed on pre-verification due to %d\n", err);
-
-		if (err == X509_V_ERR_CERT_NOT_YET_VALID)
-			RTLS_ERR("Please ensure check the time-keeping "
-				 "is consistent between client and "
-				 "server\n");
-
-		return 0;
-	}
-
-	uint8_t hash[EVP_MAX_MD_SIZE];
-	int hash_size;
-	crypto_wrapper_err_t err = calc_pubkey_hash(cert, hash, &hash_size);
-	if (err != CRYPTO_WRAPPER_ERR_NONE)
-		return 0;
-
-	/* Extract the Rats TLS certificate extension from the TLS certificate
-	 * extension and parse it into evidence
-	 */
 	attestation_evidence_t evidence;
 
-	if (find_oid(cert, (const char *)ecdsa_quote_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "sgx_ecdsa");
-	else if (find_oid(cert, (const char *)tdx_quote_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "tdx_ecdsa");
-	else if (find_oid(cert, (const char *)la_report_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "sgx_la");
-	else if (find_oid(cert, (const char *)snp_report_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "sev_snp");
-	else if (find_oid(cert, (const char *)sev_report_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "sev");
-	else if (find_oid(cert, (const char *)csv_report_oid) == SSL_SUCCESS)
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "csv");
-	else
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "nullverifier");
+	uint8_t *claims_buffer = NULL;
+	size_t claims_buffer_size = 0;
+	claim_t *custom_claims = NULL;
+	size_t custom_claims_length = 0;
 
-	int rc = openssl_extract_x509_extensions(cert, &evidence);
-	if (rc != SSL_SUCCESS) {
-		RTLS_ERR("failed to extract the extensions from the certificate %d\n", rc);
-		return 0;
+	RTLS_DEBUG("verify_evidence_buffer() called\n");
+
+	if (!tls_ctx || !tls_ctx->rtls_handle || !tls_ctx->rtls_handle->verifier ||
+	    !tls_ctx->rtls_handle->verifier->opts ||
+	    !tls_ctx->rtls_handle->verifier->opts->verify_evidence || !pubkey_hash)
+		return -TLS_WRAPPER_ERR_INVALID;
+
+	if (!evidence_buffer) {
+		/* evidence_buffer is empty, which means that the other party is using a non-dice certificate or is using a nullattester */
+		RTLS_WARN("there is no evidence in peer's certificate.\n");
+		memset(&evidence, 0, sizeof(attestation_evidence_t));
+	} else {
+		/* Get evidence struct and claims_buffer(optional) from evidence_buffer */
+		enclave_verifier_err_t d_ret = dice_parse_evidence_buffer_with_tag(
+			evidence_buffer, evidence_buffer_size, &evidence, &claims_buffer,
+			&claims_buffer_size);
+		if (d_ret != ENCLAVE_VERIFIER_ERR_NONE) {
+			ret = -TLS_WRAPPER_ERR_INVALID;
+			RTLS_ERR("dice failed to parse evidence from evidence buffer: %#x\n",
+				 d_ret);
+			goto err;
+		}
+	}
+	RTLS_DEBUG("evidence->type: '%s'\n", evidence.type);
+
+	if (claims_buffer) {
+		/* If claims_buffer exists, the hash value in evidence user-data field shall be the SHA256 hash of the `claims-buffer` byte string */
+		RTLS_DEBUG("check evidence user-data field with sha256 of claims_buffer\n");
+		uint8_t hash[SHA256_DIGEST_LENGTH];
+		size_t hash_len = SHA256_DIGEST_LENGTH;
+		SHA256(claims_buffer, claims_buffer_size, hash);
+		if (hash_len >= 16)
+			RTLS_DEBUG(
+				"sha256 of claims_buffer [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
+				hash_len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
+				hash[6], hash[7], hash[8], hash[9], hash[10], hash[11], hash[12],
+				hash[13], hash[14], hash[15]);
+		ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence, hash, hash_len);
+		if (ret != TLS_WRAPPER_ERR_NONE) {
+			RTLS_ERR("failed to verify evidence: %#x\n", ret);
+			goto err;
+		}
+	} else {
+		/* Or the user-data field shall hold pubkey-hash-value */
+		/* NOTE: Since there is no universal way to get user-data field, we need a little trick here: generate sha265 pubkey-hash-value for the public key of the certificate being verified */
+		RTLS_DEBUG("check evidence user-data field with pubkey-hash-value\n");
+		uint8_t *pubkey_hash_value_buffer = NULL;
+		size_t pubkey_hash_value_buffer_size = 0;
+		enclave_attester_err_t gen_ret = dice_generate_pubkey_hash_value_buffer(
+			pubkey_hash, &pubkey_hash_value_buffer, &pubkey_hash_value_buffer_size);
+		if (gen_ret != ENCLAVE_ATTESTER_ERR_NONE) {
+			RTLS_ERR(
+				"failed to verify evidence: unable to verify pubkey-hash-value, internal error code: %#x\n",
+				gen_ret);
+			ret = gen_ret == ENCLAVE_ATTESTER_ERR_NO_MEM ? ENCLAVE_VERIFIER_ERR_NO_MEM :
+								       ENCLAVE_VERIFIER_ERR_INVALID;
+			goto err;
+		}
+		if (pubkey_hash_value_buffer_size >= 16) {
+			uint8_t *data = pubkey_hash_value_buffer;
+			RTLS_DEBUG(
+				"pubkey-hash-value [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
+				pubkey_hash_value_buffer_size, data[0], data[1], data[2], data[3],
+				data[4], data[5], data[6], data[7], data[8], data[9], data[10],
+				data[11], data[12], data[13], data[14], data[15]);
+		}
+		ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence,
+							       pubkey_hash_value_buffer,
+							       pubkey_hash_value_buffer_size);
+		free(pubkey_hash_value_buffer);
+		if (ret != TLS_WRAPPER_ERR_NONE) {
+			RTLS_ERR("failed to verify evidence: %#x\n", ret);
+			goto err;
+		}
 	}
 
-	tls_wrapper_err_t t_err =
-		tls_wrapper_verify_certificate_extension(tls_ctx, &evidence, hash, hash_size);
-	if (t_err != TLS_WRAPPER_ERR_NONE) {
-		RTLS_ERR("failed to verify certificate extension %#x\n", err);
-		return 0;
+	/* Parse verify claims buffer from evidence buffer */
+	if (claims_buffer) {
+		enclave_verifier_err_t d_ret = dice_parse_and_verify_claims_buffer(
+			pubkey_hash, claims_buffer, claims_buffer_size, &custom_claims,
+			&custom_claims_length);
+		free(claims_buffer);
+		claims_buffer = NULL;
+		if (d_ret != ENCLAVE_VERIFIER_ERR_NONE) {
+			ret = -TLS_WRAPPER_ERR_INVALID;
+			RTLS_ERR("dice failed to parse claims from claims_buffer: %#x\n", d_ret);
+			goto err;
+		}
+
+		RTLS_DEBUG("custom_claims %p, claims_size %zu\n", custom_claims,
+			   custom_claims_length);
+		for (size_t i = 0; i < custom_claims_length; ++i) {
+			RTLS_DEBUG(
+				"custom_claims[%zu] -> name: '%s' value_size: %zu value: '%.*s'\n",
+				i, custom_claims[i].name, custom_claims[i].value_size,
+				(int)custom_claims[i].value_size, custom_claims[i].value);
+		}
 	}
 
+	/* Verify evidence struct via user_callback */
 	rtls_evidence_t ev;
+	memset(&ev, 0, sizeof(ev));
+	ev.custom_claims = custom_claims;
+	ev.custom_claims_length = custom_claims_length;
 	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
 		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
 
@@ -453,11 +326,150 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 	}
 
 	if (tls_ctx->rtls_handle->user_callback) {
-		rc = tls_ctx->rtls_handle->user_callback(&ev);
+		int rc = tls_ctx->rtls_handle->user_callback(&ev);
 		if (!rc) {
 			RTLS_ERR("failed to verify user callback %d\n", rc);
-			return 0;
+			ret = -TLS_WRAPPER_ERR_INVALID;
+			goto err;
 		}
+	}
+
+	ret = TLS_WRAPPER_ERR_NONE;
+err:
+	if (claims_buffer)
+		free(claims_buffer);
+	if (custom_claims)
+		free_claims_list(custom_claims, custom_claims_length);
+
+	return ret;
+}
+
+int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
+{
+	RTLS_DEBUG(
+		"verify_certificate preverify_ok: %d, ctx: %p, X509_STORE_CTX_get_error(ctx): %d\n",
+		preverify_ok, ctx, X509_STORE_CTX_get_error(ctx));
+
+/*
+* This code allows you to use command "openssl x509 -in /tmp/cert.der -inform der -text -noout"
+* to dump the content of TLS certificate with evidence extension.
+*/
+#if 0
+	#ifndef SGX
+	X509 *crt = X509_STORE_CTX_get_current_cert(ctx);
+	if (!crt) {
+		RTLS_ERR("failed to retrieve certificate\n");
+		return 0;
+	}
+
+	/* Convert the certificate into a buffer in DER format */
+	int der_cert_size = i2d_X509(crt, NULL);
+	unsigned char *der_buf = (unsigned char *)malloc((size_t)der_cert_size);
+	if (!der_buf) {
+		RTLS_ERR("failed to allocate buffer (%d-byte) for certificate\n", der_cert_size);
+		return 0;
+	}
+
+	unsigned char *der_cert = der_buf;
+	der_cert_size = i2d_X509(crt, &der_cert);
+
+	/* Dump certificate */
+	FILE *fp = fopen("/tmp/cert.der", "wb");
+	fwrite(der_buf, der_cert_size, 1, fp);
+	fclose(fp);
+
+	free(der_buf);
+	#endif
+#endif
+
+	X509_STORE *cert_store = X509_STORE_CTX_get0_store(ctx);
+	int *ex_data = per_thread_getspecific();
+	if (!ex_data) {
+		RTLS_ERR("failed to get ex_data\n");
+		return 0;
+	}
+
+	tls_wrapper_ctx_t *tls_ctx = X509_STORE_get_ex_data(cert_store, *ex_data);
+	if (!tls_ctx) {
+		RTLS_ERR("failed to get tls_wrapper_ctx pointer\n");
+		return 0;
+	}
+
+	X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
+	if (!cert) {
+		RTLS_ERR("failed to get cert from x509 context!\n");
+		return 0;
+	}
+
+	if (!preverify_ok) {
+		int err = X509_STORE_CTX_get_error(ctx);
+
+		/* We tolerate the case where the passed certificate is a self-signed certificate. */
+		if (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
+			return SSL_SUCCESS;
+
+		/* According to the dice standard, the DiceTaggedEvidence extension should be set to critical=true.
+		 * However, there is no way via the openssl api to know directly which extension is causing
+		 * X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION, so we have to tolerate all this cases here.
+		 * This may be a security issue if there are other critical extensions that neither we nor openssl can handle.
+		 * See:
+		 *  - https://github.com/openssl/openssl/blob/a63fa5f711f1f97e623348656b42717d6904ee3e/crypto/x509/x509_vfy.c#L490
+		 *  - https://github.com/openssl/openssl/blob/a63fa5f711f1f97e623348656b42717d6904ee3e/crypto/x509/v3_purp.c#LL596C34-L596C34
+		 */
+		if (err == X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION)
+			return SSL_SUCCESS;
+
+		/*
+		 * A typical and unrecoverable error code is
+		 * X509_V_ERR_CERT_NOT_YET_VALID (9), which implies the
+		 * time-keeping is not consistent between client and server.
+		 */
+		RTLS_ERR("Failed on pre-verification due to %d\n", err);
+
+		if (err == X509_V_ERR_CERT_NOT_YET_VALID)
+			RTLS_ERR("Please ensure check the time-keeping "
+				 "is consistent between client and "
+				 "server\n");
+
+		return 0;
+	}
+
+	const int hash_size = SHA256_HASH_SIZE;
+	uint8_t hash[hash_size];
+	crypto_wrapper_err_t err = calc_pubkey_sha256(cert, hash);
+	if (err != CRYPTO_WRAPPER_ERR_NONE)
+		return 0;
+
+	/* Extract the Rats TLS certificate extension_buffer and endorsements_buffer(optional) from the TLS
+	 * certificate extension.
+	 */
+	uint8_t *evidence_buffer = NULL;
+	size_t evidence_buffer_size = 0;
+	uint8_t *endorsements_buffer = NULL;
+	size_t endorsements_buffer_size = 0;
+
+	int rc = find_extension_from_cert(cert, TCG_DICE_TAGGED_EVIDENCE_OID, &evidence_buffer,
+					  &evidence_buffer_size, true);
+	if (rc != SSL_SUCCESS) {
+		RTLS_ERR("failed to extract the evidence extensions from the certificate %d\n", rc);
+		return rc;
+	}
+
+	rc = find_extension_from_cert(cert, TCG_DICE_ENDORSEMENT_MANIFEST_OID, &endorsements_buffer,
+				      &endorsements_buffer_size, true);
+	if (rc != SSL_SUCCESS) {
+		free(evidence_buffer);
+		RTLS_ERR("failed to extract the endorsements extensions from the certificate %d\n",
+			 rc);
+		return rc;
+	}
+
+	tls_wrapper_err_t t_err = verify_evidence_buffer(tls_ctx, evidence_buffer,
+							 evidence_buffer_size, endorsements_buffer,
+							 endorsements_buffer_size, hash);
+	if (t_err != TLS_WRAPPER_ERR_NONE) {
+		RTLS_ERR("failed to verify certificate extension %#x\n", err);
+		return 0;
 	}
 
 	return SSL_SUCCESS;

@@ -26,8 +26,6 @@
 
 #define SSL_SUCCESS 1
 
-extern int openssl_extract_x509_extensions(X509 *crt, attestation_evidence_t *evidence);
-
 typedef struct {
 	SSL_CTX *sctx;
 	SSL *ssl;

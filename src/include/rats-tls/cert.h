@@ -78,7 +78,10 @@ typedef struct {
 	cert_subject_t subject;
 	unsigned int cert_len;
 	uint8_t cert_buf[8192];
-	attestation_evidence_t evidence;
+	uint8_t *evidence_buffer;
+	size_t evidence_buffer_size;
+	uint8_t *endorsements_buffer;
+	size_t endorsements_buffer_size;
 } rats_tls_cert_info_t;
 
 #endif

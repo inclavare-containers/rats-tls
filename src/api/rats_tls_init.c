@@ -8,6 +8,7 @@
 #include <string.h>
 #include <rats-tls/api.h>
 #include <rats-tls/log.h>
+#include <rats-tls/claim.h>
 #include "internal/core.h"
 #include "internal/crypto_wrapper.h"
 #include "internal/tls_wrapper.h"
@@ -48,6 +49,23 @@ rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handl
 	}
 
 	global_log_level = ctx->config.log_level;
+
+	/* Make a copy of user-defined custom claims */
+	if (conf->custom_claims && conf->custom_claims_length) {
+		RTLS_DEBUG("conf->custom_claims: %p conf->custom_claims_length: %zu\n",
+			   conf->custom_claims, conf->custom_claims_length);
+		ctx->config.custom_claims =
+			clone_claims_list(conf->custom_claims, conf->custom_claims_length);
+		err = RATS_TLS_ERR_NO_MEM;
+		if (!ctx->config.custom_claims) {
+			RTLS_ERR("failed to make copy of custom claims: out of memory\n");
+			goto err_ctx;
+		}
+		ctx->config.custom_claims_length = conf->custom_claims_length;
+	} else {
+		ctx->config.custom_claims = NULL;
+		ctx->config.custom_claims_length = 0;
+	}
 
 	/* Select the target crypto wrapper to be used */
 	char *choice = ctx->config.crypto_type;
