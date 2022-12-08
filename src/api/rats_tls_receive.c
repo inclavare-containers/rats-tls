@@ -13,7 +13,7 @@ rats_tls_err_t rats_tls_receive(rats_tls_handle handle, void *buf, size_t *buf_s
 {
 	rtls_core_context_t *ctx = (rtls_core_context_t *)handle;
 
-	RTLS_DEBUG("handle %p, buf %p, buf_size %p (%Zd-byte)\n", ctx, buf, buf_size, *buf_size);
+	RTLS_DEBUG("handle %p, buf %p, buf_size %p (%zu-byte)\n", ctx, buf, buf_size, *buf_size);
 
 	if (!handle || !handle->tls_wrapper || !handle->tls_wrapper->opts ||
 	    !handle->tls_wrapper->opts->receive || !buf || !buf_size)
