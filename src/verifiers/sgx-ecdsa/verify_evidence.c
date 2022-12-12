@@ -28,9 +28,7 @@
 // clang-format on
 
 enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_verifier_ctx_t *ctx,
-					     const char *name, attestation_evidence_t *evidence,
-					     __attribute__((unused)) uint32_t evidence_len,
-					     uint8_t *hash, uint32_t hash_len)
+					     const char *name, sgx_quote3_t *pquote, uint32_t quote_size)
 {
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
 	uint32_t supplemental_data_size = 0;
@@ -44,25 +42,6 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 	quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
 	sgx_ql_qe_report_info_t *qve_report_info = NULL;
 	uint8_t rand_nonce[16];
-
-	sgx_quote3_t *pquote = (sgx_quote3_t *)malloc(8192);
-	if (!pquote) {
-		RTLS_ERR("failed to malloc sgx quote3 data space.\n");
-		return -ENCLAVE_VERIFIER_ERR_NO_MEM;
-	}
-
-	memcpy(pquote, evidence->ecdsa.quote, evidence->ecdsa.quote_len);
-
-	uint32_t quote_size = (uint32_t)sizeof(sgx_quote3_t) + pquote->signature_data_len;
-	RTLS_DEBUG("quote size is %d, quote signature_data_len is %d\n", quote_size,
-		   pquote->signature_data_len);
-
-	/* First verify the hash value */
-	if (memcmp(hash, pquote->report_body.report_data.d, hash_len) != 0) {
-		RTLS_ERR("unmatched hash value in evidence.\n");
-		err = -ENCLAVE_VERIFIER_ERR_INVALID;
-		goto errout;
-	}
 
 	dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
 	if (dcap_ret == SGX_QL_SUCCESS) {
@@ -81,7 +60,7 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 
 	current_time = time(NULL);
 
-	dcap_ret = sgx_qv_verify_quote(evidence->ecdsa.quote, (uint32_t)quote_size, NULL,
+	dcap_ret = sgx_qv_verify_quote(pquote, (uint32_t)quote_size, NULL,
 				       current_time, &collateral_expiration_status,
 				       &quote_verification_result, qve_report_info,
 				       supplemental_data_size, p_supplemental_data);
@@ -122,7 +101,6 @@ errret:
 	free(p_supplemental_data);
 errout:
 	free(qve_report_info);
-	free(pquote);
 
 	return err;
 }
@@ -135,6 +113,18 @@ enclave_verifier_err_t sgx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx,
 	RTLS_DEBUG("ctx %p, evidence %p, hash %p\n", ctx, evidence, hash);
 
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
+
+	sgx_quote3_t *pquote = (sgx_quote3_t *)evidence->ecdsa.quote;
+
+	uint32_t quote_size = (uint32_t)sizeof(sgx_quote3_t) + pquote->signature_data_len;
+	RTLS_DEBUG("quote size is %d, quote signature_data_len is %d\n", quote_size,
+		   pquote->signature_data_len);
+
+	/* First verify the hash value */
+	if (memcmp(hash, pquote->report_body.report_data.d, hash_len) != 0) {
+		RTLS_ERR("unmatched hash value in evidence.\n");
+		return -ENCLAVE_VERIFIER_ERR_INVALID;
+	}
 #ifdef OCCLUM
 	uint32_t supplemental_data_size = 0;
 	uint8_t *p_supplemental_data = NULL;
@@ -205,11 +195,11 @@ enclave_verifier_err_t sgx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx,
 #elif defined(SGX)
 	sgx_ecdsa_ctx_t *ecdsa_ctx = (sgx_ecdsa_ctx_t *)ctx->verifier_private;
 	sgx_enclave_id_t eid = (sgx_enclave_id_t)ecdsa_ctx->eid;
-	ocall_ecdsa_verify_evidence(&err, ctx, eid, ctx->opts->name, evidence,
-				    sizeof(attestation_evidence_t), hash, hash_len);
+	int sgx_status = ocall_ecdsa_verify_evidence(&err, ctx, eid, ctx->opts->name, pquote, quote_size);
+	if (sgx_status != SGX_SUCCESS || err != ENCLAVE_VERIFIER_ERR_NONE)
+		RTLS_ERR("failed to verify ecdsa\n");
 #else
-	err = ecdsa_verify_evidence(ctx, ctx->opts->name, evidence, sizeof(attestation_evidence_t),
-				    hash, hash_len);
+	err = ecdsa_verify_evidence(ctx, ctx->opts->name, pquote, quote_size);
 	if (err != ENCLAVE_VERIFIER_ERR_NONE)
 		RTLS_ERR("failed to verify ecdsa\n");
 #endif

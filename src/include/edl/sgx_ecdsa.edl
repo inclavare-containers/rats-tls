@@ -24,10 +24,8 @@ enclave {
 		enclave_verifier_err_t ocall_ecdsa_verify_evidence([user_check] enclave_verifier_ctx_t *ctx,
                                                                 sgx_enclave_id_t enclave_id,
                                                                 [in, string] const char *name,
-                                                                [in, size=evidence_len] attestation_evidence_t *evidence,
-                                                                uint32_t evidence_len,
-                                                                [in, size=hash_len] uint8_t *hash,
-                                                                uint32_t hash_len)
+								[in, size=quote_size] sgx_quote3_t *pquote,
+								uint32_t quote_size)
 			allow(ecall_get_target_info, sgx_tvl_verify_qve_report_and_identity);
 	};
 };
