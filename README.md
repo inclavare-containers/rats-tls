@@ -83,6 +83,8 @@ cd /usr/share/rats-tls/samples
 ./rats-tls-server
 ```
 
+By default, the listening port is 1234. -p option can be used to specify the listening port.
+
 ## Run RATS TLS client
 ```
 cd /usr/share/rats-tls/samples
