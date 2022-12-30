@@ -12,6 +12,7 @@
 #include <rats-tls/err.h>
 #include <rats-tls/api.h>
 #include <rats-tls/cert.h>
+#include <rats-tls/endorsement.h>
 
 #define ENCLAVE_VERIFIER_TYPE_MAX 32
 
@@ -43,10 +44,9 @@ typedef struct {
 	/* Optional */
 	enclave_verifier_err_t (*pre_init)(void);
 	enclave_verifier_err_t (*init)(enclave_verifier_ctx_t *ctx, rats_tls_cert_algo_t algo);
-	enclave_verifier_err_t (*verify_evidence)(enclave_verifier_ctx_t *ctx,
-						  attestation_evidence_t *evidence, uint8_t *hash,
-						  uint32_t hash_len);
-	enclave_verifier_err_t (*collect_collateral)(enclave_verifier_ctx_t *ctx);
+	enclave_verifier_err_t (*verify_evidence)(
+		enclave_verifier_ctx_t *ctx, attestation_evidence_t *evidence, uint8_t *hash,
+		uint32_t hash_len, attestation_endorsement_t *endorsements /* optional */);
 	enclave_verifier_err_t (*cleanup)(enclave_verifier_ctx_t *ctx);
 } enclave_verifier_opts_t;
 

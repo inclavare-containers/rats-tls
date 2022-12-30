@@ -14,7 +14,8 @@ extern enclave_verifier_err_t tdx_ecdsa_verifier_init(enclave_verifier_ctx_t *ct
 						      rats_tls_cert_algo_t algo);
 extern enclave_verifier_err_t tdx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx,
 							attestation_evidence_t *evidence,
-							uint8_t *hash, uint32_t hash_len);
+							uint8_t *hash, uint32_t hash_len,
+							attestation_endorsement_t *endorsements);
 extern enclave_verifier_err_t tdx_ecdsa_verifier_cleanup(enclave_verifier_ctx_t *ctx);
 
 static enclave_verifier_opts_t tdx_ecdsa_verifier_opts = {

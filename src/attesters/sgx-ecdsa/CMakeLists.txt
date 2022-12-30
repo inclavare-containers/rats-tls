@@ -29,6 +29,7 @@ endif()
 # Set source file
 set(SOURCES cleanup.c
             collect_evidence.c
+            collect_endorsements.c
             init.c
             main.c
             pre_init.c

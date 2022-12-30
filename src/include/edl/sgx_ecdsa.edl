@@ -22,10 +22,31 @@ enclave {
                                                 [out, size=quote_size] uint8_t *quote);
 
 		enclave_verifier_err_t ocall_ecdsa_verify_evidence([user_check] enclave_verifier_ctx_t *ctx,
-                                                                sgx_enclave_id_t enclave_id,
-                                                                [in, string] const char *name,
-								[in, size=quote_size] sgx_quote3_t *pquote,
-								uint32_t quote_size)
+                                                sgx_enclave_id_t enclave_id,
+                                                [in, string] const char *name,
+                                                [in, size=quote_size] sgx_quote3_t *pquote,
+                                                uint32_t quote_size,
+                                                uint32_t collateral_version,
+                                                [in, size=collateral_pck_crl_issuer_chain_size] char * collateral_pck_crl_issuer_chain,
+                                                uint32_t collateral_pck_crl_issuer_chain_size,
+                                                [in, size=collateral_root_ca_crl_size] char * collateral_root_ca_crl,
+                                                uint32_t collateral_root_ca_crl_size,
+                                                [in, size=collateral_pck_crl_size] char * collateral_pck_crl,
+                                                uint32_t collateral_pck_crl_size,
+                                                [in, size=collateral_tcb_info_issuer_chain_size] char * collateral_tcb_info_issuer_chain,
+                                                uint32_t collateral_tcb_info_issuer_chain_size,
+                                                [in, size=collateral_tcb_info_size] char * collateral_tcb_info,
+                                                uint32_t collateral_tcb_info_size,
+                                                [in, size=collateral_qe_identity_issuer_chain_size] char * collateral_qe_identity_issuer_chain,
+                                                uint32_t collateral_qe_identity_issuer_chain_size,
+                                                [in, size=collateral_qe_identity_size] char * collateral_qe_identity,
+                                                uint32_t collateral_qe_identity_size)
 			allow(ecall_get_target_info, sgx_tvl_verify_qve_report_and_identity);
+
+		enclave_attester_err_t ocall_tee_qv_get_collateral([in, size=quote_size] const uint8_t *pquote,
+                                                uint32_t quote_size,
+                                                [out] uint8_t **pp_quote_collateral_untrusted);
+
+		enclave_attester_err_t ocall_tee_qv_free_collateral([user_check] uint8_t *p_quote_collateral_untrusted);
 	};
 };

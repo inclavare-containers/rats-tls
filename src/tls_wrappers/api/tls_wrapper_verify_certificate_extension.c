@@ -12,9 +12,9 @@
 #include "internal/attester.h"
 #include "internal/verifier.h"
 
-tls_wrapper_err_t tls_wrapper_verify_certificate_extension(tls_wrapper_ctx_t *tls_ctx,
-							   attestation_evidence_t *evidence,
-							   uint8_t *hash, uint32_t hash_len)
+tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
+	tls_wrapper_ctx_t *tls_ctx, attestation_evidence_t *evidence, uint8_t *hash,
+	uint32_t hash_len, attestation_endorsement_t *endorsements /* Optional */)
 {
 	RTLS_DEBUG("tls_wrapper_verify_certificate_extension() called with evidence type: '%s'\n",
 		   evidence->type);
@@ -39,7 +39,7 @@ tls_wrapper_err_t tls_wrapper_verify_certificate_extension(tls_wrapper_ctx_t *tl
 	}
 
 	enclave_verifier_err_t err = tls_ctx->rtls_handle->verifier->opts->verify_evidence(
-		tls_ctx->rtls_handle->verifier, evidence, hash, hash_len);
+		tls_ctx->rtls_handle->verifier, evidence, hash, hash_len, endorsements);
 	if (err != ENCLAVE_VERIFIER_ERR_NONE) {
 		RTLS_ERR("failed to verify evidence %#x\n", err);
 		return -TLS_WRAPPER_ERR_INVALID;

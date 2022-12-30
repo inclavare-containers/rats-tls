@@ -12,6 +12,7 @@
 #include <rats-tls/err.h>
 #include <rats-tls/api.h>
 #include <rats-tls/cert.h>
+#include <rats-tls/endorsement.h>
 
 #define ENCLAVE_ATTESTER_TYPE_MAX 32
 
@@ -49,6 +50,9 @@ typedef struct {
 						   attestation_evidence_t *evidence,
 						   rats_tls_cert_algo_t algo, uint8_t *hash,
 						   uint32_t hash_len);
+	enclave_attester_err_t (*collect_endorsements)(enclave_attester_ctx_t *ctx,
+						       attestation_evidence_t *evidence,
+						       attestation_endorsement_t *endorsements);
 	enclave_attester_err_t (*cleanup)(enclave_attester_ctx_t *ctx);
 } enclave_attester_opts_t;
 

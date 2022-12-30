@@ -12,6 +12,7 @@
 #include <rats-tls/err.h>
 #include <rats-tls/api.h>
 #include <rats-tls/cert.h>
+#include <rats-tls/endorsement.h>
 
 #define TLS_WRAPPER_TYPE_MAX 32
 
@@ -54,8 +55,8 @@ struct tls_wrapper_ctx {
 };
 
 extern tls_wrapper_err_t tls_wrapper_register(const tls_wrapper_opts_t *);
-extern tls_wrapper_err_t tls_wrapper_verify_certificate_extension(tls_wrapper_ctx_t *tls_ctx,
-								  attestation_evidence_t *evidence,
-								  uint8_t *hash, uint32_t hash_len);
+extern tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
+	tls_wrapper_ctx_t *tls_ctx, attestation_evidence_t *evidence, uint8_t *hash,
+	uint32_t hash_len, attestation_endorsement_t *endorsements /* Optional */);
 
 #endif

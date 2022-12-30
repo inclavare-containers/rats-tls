@@ -10,6 +10,7 @@
 #include "internal/attester.h"
 #include "internal/verifier.h"
 #include "internal/dice.h"
+#include <string.h>
 
 rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 {
@@ -58,13 +59,7 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	if (c_err != CRYPTO_WRAPPER_ERR_NONE)
 		return c_err;
 
-	/* Collect certificate evidence */
-	rats_tls_cert_info_t cert_info = {
-		.subject = {
-			.organization = (const unsigned char *)"Inclavare Containers",
-			.common_name = (const unsigned char *)"RATS-TLS",
-		},
-	};
+	/* Collect evidence */
 	attestation_evidence_t evidence;
 	memset(&evidence, 0, sizeof(attestation_evidence_t));
 
@@ -133,11 +128,19 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	}
 	RTLS_DEBUG("evidence.type: '%s'\n", evidence.type);
 
-	/* Get DICE evidence buffer */
+	/* Prepare cert info for cert generation */
+	rats_tls_cert_info_t cert_info = {
+		.subject = {
+			.organization = (const unsigned char *)"Inclavare Containers",
+			.common_name = (const unsigned char *)"RATS-TLS",
+		},
+	};
 	cert_info.evidence_buffer = NULL;
 	cert_info.evidence_buffer_size = 0;
 	cert_info.endorsements_buffer = NULL;
 	cert_info.endorsements_buffer_size = 0;
+
+	/* Get DICE evidence buffer */
 	/* This check is a workaround for the nullattester.
 	 * Note: For nullattester, we do not generate an evidence_buffer. nor do we generate evidence extension.  */
 	if (evidence.type[0] == '\0') {
@@ -154,6 +157,32 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 		}
 	}
 	RTLS_DEBUG("evidence buffer size: %zu\n", cert_info.evidence_buffer_size);
+
+	/* Collect endorsements if required */
+	if ((evidence.type[0] != '\0' /* skip for nullattester */ &&
+	     ctx->config.flags & RATS_TLS_CONF_FLAGS_PROVIDE_ENDORSEMENTS) &&
+	    ctx->attester->opts->collect_endorsements) {
+		attestation_endorsement_t endorsements;
+		memset(&endorsements, 0, sizeof(attestation_endorsement_t));
+
+		enclave_attester_err_t q_ret = ctx->attester->opts->collect_endorsements(
+			ctx->attester, &evidence, &endorsements);
+		if (q_ret != ENCLAVE_ATTESTER_ERR_NONE) {
+			RTLS_WARN("failed to collect collateral: %#x\n", q_ret);
+			/* Since endorsements are not essential, we tolerate the failure to occur. */
+		} else {
+			/* Get DICE endorsements buffer */
+			enclave_attester_err_t d_ret = dice_generate_endorsements_buffer_with_tag(
+				evidence.type, &endorsements, &cert_info.endorsements_buffer,
+				&cert_info.endorsements_buffer_size);
+			free_endorsements(evidence.type, &endorsements);
+			if (d_ret != ENCLAVE_ATTESTER_ERR_NONE) {
+				RTLS_ERR("Failed to generate endorsements buffer %#x\n", d_ret);
+				return d_ret;
+			}
+		}
+	}
+	RTLS_DEBUG("endorsements buffer size: %zu\n", cert_info.endorsements_buffer_size);
 
 	/* Generate the TLS certificate */
 	c_err = ctx->crypto_wrapper->opts->gen_cert(ctx->crypto_wrapper, ctx->config.cert_algo,

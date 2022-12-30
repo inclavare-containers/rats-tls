@@ -18,6 +18,9 @@ extern enclave_attester_err_t nullattester_collect_evidence(enclave_attester_ctx
 							    attestation_evidence_t *,
 							    rats_tls_cert_algo_t algo, uint8_t *,
 							    uint32_t hash_len);
+extern enclave_attester_err_t
+nullattester_collect_endorsements(enclave_attester_ctx_t *ctx, attestation_evidence_t *evidence,
+				  attestation_endorsement_t *endorsements);
 extern enclave_attester_err_t nullattester_cleanup(enclave_attester_ctx_t *);
 
 static enclave_attester_opts_t nullattester_opts = {
@@ -29,6 +32,7 @@ static enclave_attester_opts_t nullattester_opts = {
 	.init = nullattester_init,
 	//.extend_cert = nullattester_extend_cert,
 	.collect_evidence = nullattester_collect_evidence,
+	.collect_endorsements = nullattester_collect_endorsements,
 	.cleanup = nullattester_cleanup,
 };
 

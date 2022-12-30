@@ -152,13 +152,10 @@ done:
 	return result;
 }
 
-static tls_wrapper_err_t
-verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
-		       uint8_t *evidence_buffer /* optional, for nullverifier */,
-		       size_t evidence_buffer_size,
-		       __attribute__((unused)) uint8_t *endorsements_buffer /* optional */,
-		       __attribute__((unused)) size_t endorsements_buffer_size,
-		       uint8_t *pubkey_hash /* Assume it is sha256 hash */)
+static tls_wrapper_err_t verify_evidence_buffer(
+	tls_wrapper_ctx_t *tls_ctx, uint8_t *evidence_buffer /* optional, for nullverifier */,
+	size_t evidence_buffer_size, uint8_t *endorsements_buffer /* optional */,
+	size_t endorsements_buffer_size, uint8_t *pubkey_hash /* Assume it is sha256 hash */)
 {
 	tls_wrapper_err_t ret;
 
@@ -169,7 +166,10 @@ verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
 	claim_t *custom_claims = NULL;
 	size_t custom_claims_length = 0;
 
-	RTLS_DEBUG("verify_evidence_buffer() called\n");
+	RTLS_DEBUG(
+		"tls_ctx %p, evidence_buffer %p, evidence_buffer_size %zu, endorsements_buffer %p, endorsements_buffer_size %zu, pubkey_hash %p\n",
+		tls_ctx, evidence_buffer, evidence_buffer_size, endorsements_buffer,
+		endorsements_buffer_size, pubkey_hash);
 
 	if (!tls_ctx || !tls_ctx->rtls_handle || !tls_ctx->rtls_handle->verifier ||
 	    !tls_ctx->rtls_handle->verifier->opts ||
@@ -194,6 +194,24 @@ verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
 	}
 	RTLS_DEBUG("evidence->type: '%s'\n", evidence.type);
 
+	attestation_endorsement_t endorsements;
+	memset(&endorsements, 0, sizeof(attestation_endorsement_t));
+
+	bool has_endorsements = endorsements_buffer && endorsements_buffer_size;
+	RTLS_DEBUG("has_endorsements: %s\n", has_endorsements ? "true" : "false");
+	if (has_endorsements) {
+		enclave_verifier_err_t d_ret = dice_parse_endorsements_buffer_with_tag(
+			evidence.type, endorsements_buffer, endorsements_buffer_size,
+			&endorsements);
+		if (d_ret != ENCLAVE_VERIFIER_ERR_NONE) {
+			ret = -TLS_WRAPPER_ERR_INVALID;
+			RTLS_ERR(
+				"dice failed to parse endorsements from endorsements buffer: %#x\n",
+				d_ret);
+			goto err;
+		}
+	}
+
 	if (claims_buffer) {
 		/* If claims_buffer exists, the hash value in evidence user-data field shall be the SHA256 hash of the `claims-buffer` byte string */
 		RTLS_DEBUG("check evidence user-data field with sha256 of claims_buffer\n");
@@ -206,7 +224,11 @@ verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
 				hash_len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
 				hash[6], hash[7], hash[8], hash[9], hash[10], hash[11], hash[12],
 				hash[13], hash[14], hash[15]);
-		ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence, hash, hash_len);
+		ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence, hash, hash_len,
+							       has_endorsements ? &endorsements :
+										  NULL);
+		if (has_endorsements)
+			free_endorsements(evidence.type, &endorsements);
 		if (ret != TLS_WRAPPER_ERR_NONE) {
 			RTLS_ERR("failed to verify evidence: %#x\n", ret);
 			goto err;
@@ -225,6 +247,8 @@ verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
 				gen_ret);
 			ret = gen_ret == ENCLAVE_ATTESTER_ERR_NO_MEM ? ENCLAVE_VERIFIER_ERR_NO_MEM :
 								       ENCLAVE_VERIFIER_ERR_INVALID;
+			if (has_endorsements)
+				free_endorsements(evidence.type, &endorsements);
 			goto err;
 		}
 		if (pubkey_hash_value_buffer_size >= 16) {
@@ -235,17 +259,19 @@ verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
 				data[4], data[5], data[6], data[7], data[8], data[9], data[10],
 				data[11], data[12], data[13], data[14], data[15]);
 		}
-		ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence,
-							       pubkey_hash_value_buffer,
-							       pubkey_hash_value_buffer_size);
+		ret = tls_wrapper_verify_certificate_extension(
+			tls_ctx, &evidence, pubkey_hash_value_buffer, pubkey_hash_value_buffer_size,
+			has_endorsements ? &endorsements : NULL);
 		free(pubkey_hash_value_buffer);
+		if (has_endorsements)
+			free_endorsements(evidence.type, &endorsements);
 		if (ret != TLS_WRAPPER_ERR_NONE) {
 			RTLS_ERR("failed to verify evidence: %#x\n", ret);
 			goto err;
 		}
 	}
 
-	/* Parse verify claims buffer from evidence buffer */
+	/* Parse and verify claims buffer */
 	if (claims_buffer) {
 		enclave_verifier_err_t d_ret = dice_parse_and_verify_claims_buffer(
 			pubkey_hash, claims_buffer, claims_buffer_size, &custom_claims,

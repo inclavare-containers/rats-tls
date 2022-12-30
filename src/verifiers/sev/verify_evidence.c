@@ -156,7 +156,9 @@ enclave_verifier_err_t validate_cert_chain(sev_evidence_t *sev_evidence, amd_cer
 
 enclave_verifier_err_t sev_verify_evidence(enclave_verifier_ctx_t *ctx,
 					   attestation_evidence_t *evidence, uint8_t *hash,
-					   uint32_t hash_len)
+					   uint32_t hash_len,
+					   __attribute__((unused))
+					   attestation_endorsement_t *endorsements)
 {
 	RTLS_DEBUG("ctx %p, evidence %p, hash %p\n", ctx, evidence, hash);
 

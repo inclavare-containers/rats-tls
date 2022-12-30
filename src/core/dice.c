@@ -9,6 +9,7 @@
 #include <rats-tls/log.h>
 #include <internal/dice.h>
 #include <rats-tls/cert.h>
+#include <rats-tls/endorsement.h>
 #include <cbor.h>
 
 uint64_t tag_of_evidence_type(const char *type)
@@ -302,6 +303,99 @@ err:
 	return ret;
 }
 
+enclave_attester_err_t dice_generate_endorsements_buffer_with_tag(
+	const char *type, const attestation_endorsement_t *endorsements,
+	uint8_t **endorsements_buffer_out, size_t *endorsements_buffer_size_out)
+{
+	enclave_attester_err_t ret;
+	cbor_item_t *root = NULL;
+	cbor_item_t *array = NULL;
+
+	/* Currently we only support endorsements for SGX/TDX ECDSA mode */
+	if (!strcmp(type, "sgx_ecdsa") || !strcmp(type, "tdx_ecdsa")) {
+		/* endorsements_buffer is a tagged CBOR definite-length array with 8 or 9 entries. */
+		/* endorsements_buffer: <tag1>([h'<VERSION>', h'<TCB_INFO>', h'<TCB_ISSUER_CHAIN>', h'<CRL_PCK_CERT>', h'<CRL_PCK_PROC_CA>', h'<CRL_ISSUER_CHAIN_PCK_CERT>', h'<QE_ID_INFO>', h'<QE_ID_ISSUER_CHAIN>', h'<CREATION_DATETIME>']) */
+		ret = ENCLAVE_ATTESTER_ERR_INVALID;
+		uint64_t tag_value = tag_of_evidence_type(type);
+		if (!tag_value)
+			goto err;
+
+		ret = ENCLAVE_ATTESTER_ERR_NO_MEM;
+		root = cbor_new_tag(tag_value);
+		if (!root)
+			goto err;
+
+		/* For SGX/TDX ECDSA, the array contains 8 or 9 entries. However, we always generate 8 entries,
+		 * since we currently do not support h'<CREATION_DATETIME>'. */
+		array = cbor_new_definite_array(8);
+		if (!array)
+			goto err;
+
+		/* h'<VERSION>' */
+		if (!cbor_array_push(array,
+				     cbor_move(cbor_build_uint32(endorsements->ecdsa.version))))
+			goto err;
+		/* h'<TCB_INFO>' */
+		if (!cbor_array_push(array, cbor_move(cbor_build_bytestring(
+						    (cbor_data)endorsements->ecdsa.tcb_info,
+						    endorsements->ecdsa.tcb_info_size))))
+			goto err;
+		/* h'<TCB_ISSUER_CHAIN>' */
+		if (!cbor_array_push(array,
+				     cbor_move(cbor_build_bytestring(
+					     (cbor_data)endorsements->ecdsa.tcb_info_issuer_chain,
+					     endorsements->ecdsa.tcb_info_issuer_chain_size))))
+			goto err;
+		/* h'<CRL_PCK_CERT>' */
+		if (!cbor_array_push(array, cbor_move(cbor_build_bytestring(
+						    (cbor_data)endorsements->ecdsa.pck_crl,
+						    endorsements->ecdsa.pck_crl_size))))
+			goto err;
+		/* h'<CRL_PCK_PROC_CA>' */
+		if (!cbor_array_push(array, cbor_move(cbor_build_bytestring(
+						    (cbor_data)endorsements->ecdsa.root_ca_crl,
+						    endorsements->ecdsa.root_ca_crl_size))))
+			goto err;
+		/* h'<CRL_ISSUER_CHAIN_PCK_CERT>' */
+		if (!cbor_array_push(array,
+				     cbor_move(cbor_build_bytestring(
+					     (cbor_data)endorsements->ecdsa.pck_crl_issuer_chain,
+					     endorsements->ecdsa.pck_crl_issuer_chain_size))))
+			goto err;
+		/* h'<QE_ID_INFO>' */
+		if (!cbor_array_push(array, cbor_move(cbor_build_bytestring(
+						    (cbor_data)endorsements->ecdsa.qe_identity,
+						    endorsements->ecdsa.qe_identity_size))))
+			goto err;
+		/* h'<QE_ID_ISSUER_CHAIN>' */
+		if (!cbor_array_push(
+			    array, cbor_move(cbor_build_bytestring(
+					   (cbor_data)endorsements->ecdsa.qe_identity_issuer_chain,
+					   endorsements->ecdsa.qe_identity_issuer_chain_size))))
+			goto err;
+
+		cbor_tag_set_item(root, array);
+		*endorsements_buffer_size_out =
+			cbor_serialize_alloc(root, endorsements_buffer_out, NULL);
+		if (!*endorsements_buffer_size_out)
+			goto err;
+	} else {
+		RTLS_FATAL(
+			"Failed to generate endorsements buffer: unsupported evidence type: %s\n",
+			type);
+		ret = ENCLAVE_ATTESTER_ERR_INVALID;
+		goto err;
+	}
+
+	ret = ENCLAVE_ATTESTER_ERR_NONE;
+err:
+	if (root)
+		cbor_decref(&root);
+	if (array)
+		cbor_decref(&array);
+	return ret;
+}
+
 /*
 * DICE related verifier functions
 */
@@ -317,8 +411,21 @@ err:
 
 #define RATS_VERIFIER_CBOR_ASSERT(statement) RATS_VERIFIER_CBOR_ASSERT_GOTO(statement, err)
 
-enclave_verifier_err_t dice_parse_evidence_buffer_with_tag(uint8_t *evidence_buffer,
-							   const size_t evidence_buffer_size,
+#define RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(buffer_field, buffer_size_field, cbor_object)    \
+	{                                                                                     \
+		RATS_VERIFIER_CBOR_ASSERT(cbor_isa_bytestring(cbor_object));                  \
+		RATS_VERIFIER_CBOR_ASSERT(cbor_bytestring_is_definite(cbor_object));          \
+		buffer_size_field = cbor_bytestring_length(cbor_object);                      \
+		buffer_field = malloc(buffer_size_field);                                     \
+		if (!buffer_field) {                                                          \
+			ret = ENCLAVE_VERIFIER_ERR_NO_MEM;                                    \
+			goto err;                                                             \
+		}                                                                             \
+		memcpy(buffer_field, cbor_bytestring_handle(cbor_object), buffer_size_field); \
+	}
+
+enclave_verifier_err_t dice_parse_evidence_buffer_with_tag(const uint8_t *evidence_buffer,
+							   size_t evidence_buffer_size,
 							   attestation_evidence_t *evidence,
 							   uint8_t **claims_buffer_out,
 							   size_t *claims_buffer_size_out)
@@ -345,6 +452,7 @@ enclave_verifier_err_t dice_parse_evidence_buffer_with_tag(uint8_t *evidence_buf
 			 result.error.position);
 		goto err;
 	}
+
 	/* Check cbor tag */
 	RATS_VERIFIER_CBOR_ASSERT(cbor_isa_tag(root));
 	if (!tag_is_valid(cbor_tag_value(root))) {
@@ -405,6 +513,130 @@ err:
 		cbor_decref(&root);
 	if (claims_buffer)
 		free(claims_buffer);
+	return ret;
+}
+
+enclave_verifier_err_t
+dice_parse_endorsements_buffer_with_tag(const char *type, const uint8_t *endorsements_buffer,
+					size_t endorsements_buffer_size,
+					attestation_endorsement_t *endorsements)
+{
+	enclave_verifier_err_t ret = ENCLAVE_VERIFIER_ERR_CBOR;
+
+	cbor_item_t *root = NULL;
+	cbor_item_t *array = NULL;
+	cbor_item_t *array_i = NULL;
+
+	/* Currently we only support endorsements for SGX/TDX ECDSA mode */
+	if (!strcmp(type, "sgx_ecdsa") || !strcmp(type, "tdx_ecdsa")) {
+		/* Parse endorsements_buffer as cbor data: an encoded tagged CBOR definite-length array with 8 entries. */
+		struct cbor_load_result result;
+		root = cbor_load(endorsements_buffer, endorsements_buffer_size, &result);
+		if (result.error.code != CBOR_ERR_NONE) {
+			ret = result.error.code == CBOR_ERR_MEMERROR ? ENCLAVE_VERIFIER_ERR_NO_MEM :
+								       ENCLAVE_VERIFIER_ERR_CBOR;
+			RTLS_ERR("Failed to parse endorsements_buffer as cbor data. pos: %zu\n",
+				 result.error.position);
+			goto err;
+		}
+
+		/* Check cbor tag */
+		RATS_VERIFIER_CBOR_ASSERT(cbor_isa_tag(root));
+		if (cbor_tag_value(root) != OCBR_TAG_EVIDENCE_INTEL_TEE_QUOTE) {
+			/* We currently only support endorsements for SGX/TDX ECDSA. */
+			RTLS_ERR("Bad cbor data: invalid cbor tag got: 0x%zx, 0x%zx expected\n",
+				 cbor_tag_value(root), (uint64_t)OCBR_TAG_EVIDENCE_INTEL_TEE_QUOTE);
+			goto err;
+		}
+
+		/* Size of array should be 8 or 9 */
+		array = cbor_tag_item(root);
+		RATS_VERIFIER_CBOR_ASSERT(cbor_isa_array(array));
+		RATS_VERIFIER_CBOR_ASSERT(cbor_array_is_definite(array));
+
+		ret = ENCLAVE_VERIFIER_ERR_CBOR;
+		if (cbor_array_size(array) != 8 && cbor_array_size(array) != 9) {
+			RTLS_ERR(
+				"Bad cbor data: invalid endorsements array length: %zu, should be 8 or 9\n",
+				cbor_array_size(array));
+		}
+
+		/* h'<VERSION>' */
+		array_i = cbor_array_get(array, 0);
+		RATS_VERIFIER_CBOR_ASSERT(cbor_isa_uint(array_i));
+		RATS_VERIFIER_CBOR_ASSERT(cbor_int_get_width(array_i) == CBOR_INT_32);
+		endorsements->ecdsa.version = cbor_get_uint32(array_i);
+		cbor_decref(&array_i);
+
+		/* h'<TCB_INFO>' */
+		array_i = cbor_array_get(array, 1);
+		RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(endorsements->ecdsa.tcb_info,
+						     endorsements->ecdsa.tcb_info_size, array_i);
+		cbor_decref(&array_i);
+
+		/* h'<TCB_ISSUER_CHAIN>' */
+		array_i = cbor_array_get(array, 2);
+		RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(endorsements->ecdsa.tcb_info_issuer_chain,
+						     endorsements->ecdsa.tcb_info_issuer_chain_size,
+						     array_i);
+		cbor_decref(&array_i);
+
+		/* h'<CRL_PCK_CERT>' */
+		array_i = cbor_array_get(array, 3);
+		RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(endorsements->ecdsa.pck_crl,
+						     endorsements->ecdsa.pck_crl_size, array_i);
+		cbor_decref(&array_i);
+
+		/* h'<CRL_PCK_PROC_CA>' */
+		array_i = cbor_array_get(array, 4);
+		RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(endorsements->ecdsa.root_ca_crl,
+						     endorsements->ecdsa.root_ca_crl_size, array_i);
+		cbor_decref(&array_i);
+
+		/* h'<CRL_ISSUER_CHAIN_PCK_CERT>' */
+		array_i = cbor_array_get(array, 5);
+		RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(endorsements->ecdsa.pck_crl_issuer_chain,
+						     endorsements->ecdsa.pck_crl_issuer_chain_size,
+						     array_i);
+		cbor_decref(&array_i);
+
+		/* h'<QE_ID_INFO>' */
+		array_i = cbor_array_get(array, 6);
+		RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(endorsements->ecdsa.qe_identity,
+						     endorsements->ecdsa.qe_identity_size, array_i);
+		cbor_decref(&array_i);
+
+		/* h'<QE_ID_ISSUER_CHAIN>' */
+		array_i = cbor_array_get(array, 7);
+		RATS_VERIFIER_CBOR_COPY_BYTE_STRINGS(
+			endorsements->ecdsa.qe_identity_issuer_chain,
+			endorsements->ecdsa.qe_identity_issuer_chain_size, array_i);
+		cbor_decref(&array_i);
+
+		/* We do'not support h'<CREATION_DATETIME>' here. */
+
+		ret = ENCLAVE_VERIFIER_ERR_INVALID;
+		uint64_t tag_value = tag_of_evidence_type(type);
+		if (!tag_value)
+			goto err;
+	} else {
+		RTLS_FATAL(
+			"Failed to generate endorsements buffer: unsupported evidence type: %s\n",
+			type);
+		return ENCLAVE_VERIFIER_ERR_INVALID;
+	}
+
+	ret = ENCLAVE_VERIFIER_ERR_NONE;
+err:
+	if (ret != ENCLAVE_VERIFIER_ERR_NONE)
+		/* When we fail, we need to do a cleanup. As this function is responsible for allocating memory for the endorsements. */
+		free_endorsements(type, endorsements);
+	if (array_i)
+		cbor_decref(&array_i);
+	if (array)
+		cbor_decref(&array);
+	if (root)
+		cbor_decref(&root);
 	return ret;
 }
 
