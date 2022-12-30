@@ -14,7 +14,7 @@ static rats_tls_err_t init_enclave_verifier(rtls_core_context_t *ctx,
 					    enclave_verifier_ctx_t *verifier_ctx,
 					    rats_tls_cert_algo_t algo)
 {
-	RTLS_DEBUG("init enclave verifier rtls_core_context: %#x\n", ctx);
+	RTLS_DEBUG("init enclave verifier rtls_core_context: %p\n", ctx);
 	enclave_verifier_err_t err = verifier_ctx->opts->init(verifier_ctx, algo);
 
 	if (err != ENCLAVE_VERIFIER_ERR_NONE)

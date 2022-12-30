@@ -172,7 +172,7 @@ enclave_verifier_err_t sev_verify_evidence(enclave_verifier_ctx_t *ctx,
 	amd_cert ark_cert;
 	enum ePSP_DEVICE_TYPE device_type = sev_evidence->device_type;
 	if (generate_ark_ask_cert(&ask_cert, &ark_cert, device_type) == -1) {
-		RTLS_ERR("failed to load ASK cert %x\n");
+		RTLS_ERR("failed to load ASK cert\n");
 		return -ENCLAVE_VERIFIER_ERR_INVALID;
 	}
 

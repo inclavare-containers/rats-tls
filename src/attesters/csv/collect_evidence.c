@@ -223,8 +223,8 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 	user_data_pa = (uint64_t)gva_to_gpa(user_data);
 	ret = do_hypercall(KVM_HC_VM_ATTESTATION, (unsigned long)user_data_pa, CSV_GUEST_MAP_LEN);
 	if (ret) {
-		RTLS_ERR("failed to save attestation report to %#016lx (ret:%d)\n", ret,
-			 user_data_pa);
+		RTLS_ERR("failed to save attestation report to %#016lx (ret:%d)\n", user_data_pa,
+			 ret);
 		goto err_munmap;
 	}
 

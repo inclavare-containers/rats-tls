@@ -14,7 +14,7 @@ static rats_tls_err_t init_enclave_attester(rtls_core_context_t *ctx,
 					    enclave_attester_ctx_t *attester_ctx,
 					    rats_tls_cert_algo_t algo)
 {
-	RTLS_DEBUG("called enclave core ctx: %#x enclave attester ctx: %#x algo: %#x\n", ctx,
+	RTLS_DEBUG("called enclave core ctx: %p enclave attester ctx: %p algo: %u\n", ctx,
 		   attester_ctx, algo);
 
 	enclave_attester_err_t err = attester_ctx->opts->init(attester_ctx, algo);

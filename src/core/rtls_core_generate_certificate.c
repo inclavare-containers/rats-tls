@@ -92,9 +92,9 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 		if (hash_size >= 16)
 			RTLS_DEBUG(
 				"evidence user-data field [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
-				hash_size, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
-				hash[6], hash[7], hash[8], hash[9], hash[10], hash[11], hash[12],
-				hash[13], hash[14], hash[15]);
+				(size_t)hash_size, hash[0], hash[1], hash[2], hash[3], hash[4],
+				hash[5], hash[6], hash[7], hash[8], hash[9], hash[10], hash[11],
+				hash[12], hash[13], hash[14], hash[15]);
 		enclave_attester_err_t q_err;
 		q_err = ctx->attester->opts->collect_evidence(
 			ctx->attester, &evidence, ctx->config.cert_algo, hash, hash_size);
