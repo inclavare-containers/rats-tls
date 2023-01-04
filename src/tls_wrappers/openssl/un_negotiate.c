@@ -276,11 +276,11 @@ verify_evidence_buffer(tls_wrapper_ctx_t *tls_ctx,
 	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
 		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
 
-		ev.sgx.mr_enclave = (char *)quote3->report_body.mr_enclave.m;
+		ev.sgx.mr_enclave = (uint8_t *)quote3->report_body.mr_enclave.m;
 		ev.sgx.mr_signer = quote3->report_body.mr_signer.m;
 		ev.sgx.product_id = quote3->report_body.isv_prod_id;
 		ev.sgx.security_version = quote3->report_body.isv_svn;
-		ev.sgx.attributes = (char *)&(quote3->report_body.attributes);
+		ev.sgx.attributes = (uint8_t *)&(quote3->report_body.attributes);
 		ev.type = SGX_ECDSA;
 		ev.quote = (char *)quote3;
 		ev.quote_size = sizeof(sgx_quote3_t);

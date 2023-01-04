@@ -66,7 +66,7 @@ enclave_attester_err_t sgx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 	sgx_report_data_t report_data;
 	if (sizeof(report_data.d) < hash_len) {
 		RTLS_ERR("hash_len(%zu) shall be smaller than user-data filed size (%zu)\n",
-			 hash_len, sizeof(report_data.d));
+			 (size_t)hash_len, sizeof(report_data.d));
 		return ENCLAVE_ATTESTER_ERR_INVALID;
 	}
 	memset(&report_data, 0, sizeof(sgx_report_data_t));

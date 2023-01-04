@@ -453,7 +453,7 @@ enclave_verifier_err_t dice_parse_and_verify_pubkey_hash(const uint8_t *pubkey_h
 
 	if (cbor_bytestring_length(array_1) != 32) { /* sha256 */
 		RTLS_ERR("unmatched hash value length: %zu, %zu expected\n",
-			 cbor_bytestring_length(array_1), 32);
+			 cbor_bytestring_length(array_1), (size_t)32);
 		ret = ENCLAVE_VERIFIER_ERR_INVALID;
 		goto err;
 	}

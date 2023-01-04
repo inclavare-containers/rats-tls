@@ -21,7 +21,7 @@ int read_file(const char *filename, void *buffer, size_t len)
 
 	if ((count = fread(buffer, 1, len, fp)) != len) {
 		fclose(fp);
-		RTLS_ERR("failed to read %s with count %d\n", filename, count);
+		RTLS_ERR("failed to read %s with count %zu\n", filename, count);
 		return 0;
 	}
 
