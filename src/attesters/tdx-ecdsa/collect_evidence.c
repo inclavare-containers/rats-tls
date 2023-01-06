@@ -7,7 +7,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <assert.h>
 #include <rats-tls/log.h>
 #include <rats-tls/attester.h>
 #include <stddef.h>
@@ -41,8 +40,7 @@ static int tdx_get_report(const tdx_report_data_t *report_data, tdx_report_t *td
 }
 
 enclave_attester_err_t tdx_get_tdel_info(enclave_attester_ctx_t *ctx,
-					 attestation_evidence_t *evidence,
-					 int *tdel_info_len)
+					 attestation_evidence_t *evidence, int *tdel_info_len)
 {
 	RTLS_DEBUG("ctx %p, evidence %p\n", ctx, evidence);
 
@@ -72,8 +70,7 @@ enclave_attester_err_t tdx_get_tdel_info(enclave_attester_ctx_t *ctx,
 }
 
 enclave_attester_err_t tdx_get_tdel_data(enclave_attester_ctx_t *ctx,
-					 attestation_evidence_t *evidence,
-					 int *tdel_data_len)
+					 attestation_evidence_t *evidence, int *tdel_data_len)
 {
 	RTLS_DEBUG("ctx %p, evidence %p\n", ctx, evidence);
 
@@ -82,7 +79,6 @@ enclave_attester_err_t tdx_get_tdel_data(enclave_attester_ctx_t *ctx,
 		RTLS_ERR("failed to open TDEL info device\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
-
 
 	unsigned char tdel_data[TDEL_DATA_SZ];
 	int tdel_data_sz = read(fd, tdel_data, sizeof(tdel_data));
@@ -105,7 +101,7 @@ enclave_attester_err_t tdx_get_tdel_data(enclave_attester_ctx_t *ctx,
 	return ENCLAVE_ATTESTER_ERR_NONE;
 }
 
-static int tdx_gen_quote(uint8_t *hash, uint8_t *quote_buf, uint32_t *quote_size)
+static int tdx_gen_quote(uint8_t *hash, uint32_t hash_len, uint8_t *quote_buf, uint32_t *quote_size)
 {
 	if (hash == NULL) {
 		RTLS_ERR("empty hash pointer.\n");
@@ -114,8 +110,12 @@ static int tdx_gen_quote(uint8_t *hash, uint8_t *quote_buf, uint32_t *quote_size
 
 	tdx_report_t tdx_report = { { 0 } };
 	tdx_report_data_t report_data = { { 0 } };
-	assert(sizeof(report_data.d) >= SHA256_HASH_SIZE);
-	memcpy(report_data.d, hash, SHA256_HASH_SIZE);
+	if (sizeof(report_data.d) < hash_len) {
+		RTLS_ERR("hash_len(%u) shall be smaller than user-data filed size (%zu)\n",
+			 hash_len, sizeof(report_data.d));
+		return -1;
+	}
+	memcpy(report_data.d, hash, hash_len);
 	int ret = tdx_get_report(&report_data, &tdx_report);
 	if (ret != 0) {
 		RTLS_ERR("failed to get tdx report.\n");
@@ -133,7 +133,8 @@ static int tdx_gen_quote(uint8_t *hash, uint8_t *quote_buf, uint32_t *quote_size
 	}
 
 	if (p_quote_size > *quote_size) {
-		RTLS_ERR("quote buffer is too small (%d-byte vs %d-byte).\n", p_quote_size, *quote_size);
+		RTLS_ERR("quote buffer is too small (%d-byte vs %d-byte).\n", p_quote_size,
+			 *quote_size);
 		tdx_att_free_quote(p_quote);
 		return -1;
 	}
@@ -154,12 +155,13 @@ static int tdx_gen_quote(uint8_t *hash, uint8_t *quote_buf, uint32_t *quote_size
 enclave_attester_err_t tdx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 						  attestation_evidence_t *evidence,
 						  rats_tls_cert_algo_t algo, uint8_t *hash,
-						  __attribute__((unused)) uint32_t hash_len)
+						  uint32_t hash_len)
 {
-	RTLS_DEBUG("ctx %p, evidence %p, algo %d, hash %p\n", ctx, evidence, algo, hash);
+	RTLS_DEBUG("ctx %p, evidence %p, algo %d, hash %p, hash_len: %u\n", ctx, evidence, algo,
+		   hash, hash_len);
 
 	evidence->tdx.quote_len = sizeof(evidence->tdx.quote);
-	if (tdx_gen_quote(hash, evidence->tdx.quote, &evidence->tdx.quote_len)) {
+	if (tdx_gen_quote(hash, hash_len, evidence->tdx.quote, &evidence->tdx.quote_len)) {
 		RTLS_ERR("failed to generate quote\n");
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 	}
@@ -172,7 +174,8 @@ enclave_attester_err_t tdx_ecdsa_collect_evidence(enclave_attester_ctx_t *ctx,
 
 	/* TDEL information is optional */
 	int tdel_data_len = 0;
-	if (tdel_info_len && tdx_get_tdel_data(ctx, evidence, &tdel_data_len) != ENCLAVE_ATTESTER_ERR_NONE)
+	if (tdel_info_len &&
+	    tdx_get_tdel_data(ctx, evidence, &tdel_data_len) != ENCLAVE_ATTESTER_ERR_NONE)
 		return -ENCLAVE_ATTESTER_ERR_INVALID;
 
 	/* Essentially speaking, QGS generates the same
