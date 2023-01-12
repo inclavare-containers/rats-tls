@@ -6,15 +6,10 @@
 
 #include <rats-tls/log.h>
 #include <rats-tls/attester.h>
-#include "sgx_la.h"
 
-enclave_attester_err_t sgx_la_attester_cleanup(enclave_attester_ctx_t *ctx)
+enclave_attester_err_t sgx_la_attester_cleanup(__attribute__((unused)) enclave_attester_ctx_t *ctx)
 {
 	RTLS_DEBUG("called\n");
-
-	sgx_la_ctx_t *la_ctx = (sgx_la_ctx_t *)ctx->attester_private;
-
-	free(la_ctx);
 
 	return ENCLAVE_ATTESTER_ERR_NONE;
 }

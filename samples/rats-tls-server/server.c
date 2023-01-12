@@ -119,8 +119,7 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 		flags |= RATS_TLS_CONF_FLAGS_PROVIDE_ENDORSEMENTS;
 
 	int ret = 0;
-	int sgx_status = ecall_rtls_server_startup((sgx_enclave_id_t)enclave_id, &ret,
-						   (sgx_enclave_id_t)enclave_id, log_level,
+	int sgx_status = ecall_rtls_server_startup((sgx_enclave_id_t)enclave_id, &ret, log_level,
 						   attester_type, verifier_type, tls_type,
 						   crypto_type, flags, s_ip, s_port);
 	if (sgx_status != SGX_SUCCESS || ret) {

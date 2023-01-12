@@ -42,7 +42,6 @@ rats_tls_err_t rtls_tls_wrapper_select(rtls_core_context_t *ctx, const char *nam
 		 * make init() working correctly.
 		 */
 		tls_ctx->conf_flags = ctx->config.flags;
-		tls_ctx->enclave_id = ctx->config.enclave_id;
 		tls_ctx->log_level = ctx->config.log_level;
 
 		if (init_tls_wrapper(tls_ctx) == RATS_TLS_ERR_NONE)

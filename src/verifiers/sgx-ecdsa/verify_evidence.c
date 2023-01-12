@@ -12,7 +12,6 @@
 #include <sgx_quote.h>
 #include <sgx_quote_3.h>
 #include <sgx_ql_quote.h>
-#include "sgx_ecdsa.h"
 #ifdef SGX
 #include <rtls_t.h>
 #include <sgx_utils.h>

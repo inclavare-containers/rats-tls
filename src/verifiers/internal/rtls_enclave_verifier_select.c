@@ -47,7 +47,6 @@ rats_tls_err_t rtls_verifier_select(rtls_core_context_t *ctx, const char *name,
 		/* Set necessary configurations from rats_tls_init() to
 		 * make init() working correctly.
 		 */
-		verifier_ctx->enclave_id = ctx->config.enclave_id;
 		verifier_ctx->log_level = ctx->config.log_level;
 
 		if (init_enclave_verifier(ctx, verifier_ctx, algo) == RATS_TLS_ERR_NONE)

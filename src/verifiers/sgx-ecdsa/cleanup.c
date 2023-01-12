@@ -6,15 +6,11 @@
 
 #include <rats-tls/log.h>
 #include <rats-tls/verifier.h>
-#include "sgx_ecdsa.h"
 
-enclave_verifier_err_t sgx_ecdsa_verifier_cleanup(enclave_verifier_ctx_t *ctx)
+enclave_verifier_err_t sgx_ecdsa_verifier_cleanup(__attribute__((unused))
+						  enclave_verifier_ctx_t *ctx)
 {
 	RTLS_DEBUG("called\n");
-
-	sgx_ecdsa_ctx_t *ecdsa_ctx = (sgx_ecdsa_ctx_t *)ctx->verifier_private;
-
-	free(ecdsa_ctx);
 
 	return ENCLAVE_VERIFIER_ERR_NONE;
 }

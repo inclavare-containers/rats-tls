@@ -50,7 +50,6 @@ rats_tls_err_t rtls_attester_select(rtls_core_context_t *ctx, const char *name,
 		/* Set necessary configurations from rats_tls_init() to
 		 * make init() working correctly.
 		 */
-		attester_ctx->enclave_id = ctx->config.enclave_id;
 		attester_ctx->log_level = ctx->config.log_level;
 
 		if (init_enclave_attester(ctx, attester_ctx, algo) == RATS_TLS_ERR_NONE)

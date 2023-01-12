@@ -40,7 +40,6 @@ rats_tls_err_t rtls_crypto_wrapper_select(rtls_core_context_t *ctx, const char *
 		/* Set necessary configurations from rats_tls_init() to
 		 * make init() working correctly.
 		 */
-		crypto_ctx->enclave_id = ctx->config.enclave_id;
 		crypto_ctx->conf_flags = ctx->config.flags;
 		crypto_ctx->log_level = ctx->config.log_level;
 		crypto_ctx->cert_algo = ctx->config.cert_algo;
