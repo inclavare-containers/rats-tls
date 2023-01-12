@@ -9,7 +9,6 @@
 #include <string.h>
 #include <sgx_error.h>
 #include <sgx_report.h>
-#include "sgx_la.h"
 
 extern sgx_status_t sgx_generate_evidence(sgx_report_data_t *report_data, sgx_report_t *app_report);
 

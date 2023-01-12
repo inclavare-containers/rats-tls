@@ -19,7 +19,6 @@
 #include <sgx_ql_lib_common.h>
 #include <assert.h>
 #include <sgx_error.h>
-#include "sgx_ecdsa.h"
 #ifdef SGX
 #include "rtls_t.h"
 

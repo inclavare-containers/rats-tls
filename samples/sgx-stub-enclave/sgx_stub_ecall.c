@@ -15,10 +15,9 @@
 #include "rats-tls/api.h"
 #include "sgx_stub_t.h"
 
-int ecall_rtls_server_startup(sgx_enclave_id_t enclave_id, rats_tls_log_level_t log_level,
-			      char *attester_type, char *verifier_type, char *tls_type,
-			      char *crypto_type, unsigned long flags, uint32_t s_ip,
-			      uint16_t s_port)
+int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
+			      char *verifier_type, char *tls_type, char *crypto_type,
+			      unsigned long flags, uint32_t s_ip, uint16_t s_port)
 {
 	rats_tls_conf_t conf;
 
@@ -28,7 +27,6 @@ int ecall_rtls_server_startup(sgx_enclave_id_t enclave_id, rats_tls_log_level_t 
 	snprintf(conf.verifier_type, sizeof(conf.verifier_type), "%s", verifier_type);
 	snprintf(conf.tls_type, sizeof(conf.tls_type), "%s", tls_type);
 	snprintf(conf.crypto_type, sizeof(conf.crypto_type), "%s", crypto_type);
-	conf.enclave_id = enclave_id;
 	conf.flags = flags;
 	conf.cert_algo = RATS_TLS_CERT_ALGO_DEFAULT;
 
@@ -159,10 +157,9 @@ int user_callback(void *args)
 	return 1;
 }
 
-int ecall_rtls_client_startup(sgx_enclave_id_t enclave_id, rats_tls_log_level_t log_level,
-			      char *attester_type, char *verifier_type, char *tls_type,
-			      char *crypto_type, unsigned long flags, uint32_t s_ip,
-			      uint16_t s_port, bool verdictd)
+int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
+			      char *verifier_type, char *tls_type, char *crypto_type,
+			      unsigned long flags, uint32_t s_ip, uint16_t s_port, bool verdictd)
 {
 	rats_tls_conf_t conf;
 
@@ -172,7 +169,6 @@ int ecall_rtls_client_startup(sgx_enclave_id_t enclave_id, rats_tls_log_level_t 
 	snprintf(conf.verifier_type, sizeof(conf.verifier_type), "%s", verifier_type);
 	snprintf(conf.tls_type, sizeof(conf.tls_type), "%s", tls_type);
 	snprintf(conf.crypto_type, sizeof(conf.crypto_type), "%s", crypto_type);
-	conf.enclave_id = enclave_id;
 	conf.flags = flags;
 	conf.cert_algo = RATS_TLS_CERT_ALGO_DEFAULT;
 

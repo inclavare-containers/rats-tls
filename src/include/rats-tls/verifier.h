@@ -53,7 +53,6 @@ typedef struct {
 struct enclave_verifier_ctx {
 	enclave_verifier_opts_t *opts;
 	void *verifier_private;
-	unsigned long long enclave_id;
 	rats_tls_log_level_t log_level;
 	void *handle;
 

@@ -48,7 +48,6 @@ struct tls_wrapper_ctx {
 	tls_wrapper_opts_t *opts;
 	void *tls_private;
 	int fd;
-	unsigned long long enclave_id;
 	unsigned long conf_flags;
 	rats_tls_log_level_t log_level;
 	void *handle;

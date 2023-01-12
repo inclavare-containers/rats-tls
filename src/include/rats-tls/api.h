@@ -56,7 +56,6 @@ typedef struct {
 	char verifier_type[ENCLAVE_VERIFIER_TYPE_NAME_SIZE];
 	char crypto_type[CRYPTO_TYPE_NAME_SIZE];
 	rats_tls_cert_algo_t cert_algo;
-	unsigned long long enclave_id;
 	claim_t *custom_claims;
 	size_t custom_claims_length;
 
