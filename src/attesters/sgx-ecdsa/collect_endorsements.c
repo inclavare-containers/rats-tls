@@ -14,6 +14,7 @@
 #ifdef SGX
 #include <sgx_lfence.h>
 #include "rtls_t.h"
+#include <sgx_ql_quote.h>
 // clang-format on
 
 enclave_attester_err_t sgx_ecdsa_collect_endorsements(enclave_attester_ctx_t *ctx,

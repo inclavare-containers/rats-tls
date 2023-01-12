@@ -1,17 +1,14 @@
 enclave {
 	include "api.h"
 	include "cert.h"
-        include "rats-tls/verifier.h"
-        include "rats-tls/attester.h"
+	include "rats-tls/verifier.h"
+	include "rats-tls/attester.h"
 	include "err.h"
 	include "sgx_report.h"
 	include "sgx_quote_3.h"
-
-	from "sgx_dcap_tvl.edl" import *;
-
-	trusted {
-		public sgx_status_t ecall_get_target_info([out] sgx_target_info_t* target_info);
-	};
+	include "sgx_ql_quote.h"
+	include "sgx_qve_header.h"
+	include "time.h"
 
 	untrusted {
 		void ocall_get_target_info([out] sgx_target_info_t *qe_target_info);
@@ -21,10 +18,9 @@ enclave {
 		enclave_attester_err_t ocall_qe_get_quote([in]sgx_report_t *report, uint32_t quote_size,
                                                 [out, size=quote_size] uint8_t *quote);
 
-		enclave_verifier_err_t ocall_ecdsa_verify_evidence([user_check] enclave_verifier_ctx_t *ctx,
-                                                sgx_enclave_id_t enclave_id,
-                                                [in, string] const char *name,
-                                                [in, size=quote_size] sgx_quote3_t *pquote,
+        enclave_verifier_err_t ocall_sgx_qv_get_quote_supplemental_data_size([out] uint32_t *p_data_size);
+
+		enclave_verifier_err_t ocall_ecdsa_verify_evidence([in, size=quote_size] uint8_t *p_quote,
                                                 uint32_t quote_size,
                                                 uint32_t collateral_version,
                                                 [in, size=collateral_pck_crl_issuer_chain_size] char * collateral_pck_crl_issuer_chain,
@@ -40,8 +36,13 @@ enclave {
                                                 [in, size=collateral_qe_identity_issuer_chain_size] char * collateral_qe_identity_issuer_chain,
                                                 uint32_t collateral_qe_identity_issuer_chain_size,
                                                 [in, size=collateral_qe_identity_size] char * collateral_qe_identity,
-                                                uint32_t collateral_qe_identity_size)
-			allow(ecall_get_target_info, sgx_tvl_verify_qve_report_and_identity);
+                                                uint32_t collateral_qe_identity_size,
+                                                time_t expiration_check_date,
+                                                [out] uint32_t *p_collateral_expiration_status,
+                                                [out] sgx_ql_qv_result_t *p_quote_verification_result,
+                                                [in, out] sgx_ql_qe_report_info_t *p_qve_report_info,
+                                                uint32_t supplemental_data_size,
+                                                [out, size=supplemental_data_size] uint8_t *p_supplemental_data);
 
 		enclave_attester_err_t ocall_tee_qv_get_collateral([in, size=quote_size] const uint8_t *pquote,
                                                 uint32_t quote_size,

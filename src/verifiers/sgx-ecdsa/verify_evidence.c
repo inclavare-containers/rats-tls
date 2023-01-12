@@ -15,6 +15,9 @@
 #include "sgx_ecdsa.h"
 #ifdef SGX
 #include <rtls_t.h>
+#include <sgx_utils.h>
+#include <sgx_trts.h>
+#include <time.h>
 #elif defined(OCCLUM)
 #include <unistd.h>
 #include <sys/stat.h>
@@ -25,11 +28,164 @@
 #else
 #include <sgx_dcap_ql_wrapper.h>
 #include <sgx_dcap_quoteverify.h>
+#endif
 // clang-format on
 
-enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_verifier_ctx_t *ctx,
-					     const char *name, sgx_quote3_t *pquote,
+#ifdef SGX
+
+enclave_verifier_err_t ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx, sgx_quote3_t *pquote,
 					     uint32_t quote_size,
+					     attestation_endorsement_t *endorsements)
+{
+	enclave_verifier_err_t err = ENCLAVE_VERIFIER_ERR_NONE;
+	time_t current_time;
+	uint32_t collateral_expiration_status = 1;
+	sgx_isv_svn_t qve_isvsvn_threshold = 7; /* This value is published by Intel(R) PCS */
+	sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
+	uint32_t supplemental_data_size = 0;
+	uint8_t *p_supplemental_data = NULL;
+	sgx_ql_qe_report_info_t qve_report_info;
+	uint8_t rand_nonce[sizeof(qve_report_info.nonce.rand)];
+
+	/* sgx_ecdsa_qve instance re-uses this code and thus we need to distinguish
+	 * it from sgx_ecdsa instance.
+	 */
+	bool is_sgx_ecdsa_qve = !strcmp(ctx->opts->name, "sgx_ecdsa_qve");
+
+	if (is_sgx_ecdsa_qve) {
+		/* In QvE verifier mode, we need to provide a 'nonce' and current enclave's target info. */
+		sgx_read_rand(rand_nonce, sizeof(rand_nonce));
+		memcpy(qve_report_info.nonce.rand, rand_nonce, sizeof(rand_nonce));
+
+		sgx_status_t sgx_self_target_ret =
+			sgx_self_target(&qve_report_info.app_enclave_target_info);
+		if (sgx_self_target_ret != SGX_SUCCESS) {
+			RTLS_ERR("failed to get self target info sgx_self_target_ret. %04x\n",
+				 sgx_self_target_ret);
+			err = SGX_ECDSA_VERIFIER_ERR_CODE((int)sgx_self_target_ret);
+			goto errret;
+		}
+	}
+
+	int sgx_status =
+		ocall_sgx_qv_get_quote_supplemental_data_size(&err, &supplemental_data_size);
+	if (sgx_status != SGX_SUCCESS || err != ENCLAVE_VERIFIER_ERR_NONE) {
+		RTLS_ERR("ocall_ecdsa_verify_evidence() failed. sgx_status: %#x, err: %#x\n",
+			 sgx_status, err);
+		if (sgx_status == SGX_SUCCESS)
+			err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
+		goto errret;
+	}
+	RTLS_INFO("sgx qv gets quote supplemental data size successfully.\n");
+
+	p_supplemental_data = (uint8_t *)malloc(supplemental_data_size);
+	if (!p_supplemental_data) {
+		RTLS_ERR("failed to malloc supplemental data space.\n");
+		err = -ENCLAVE_VERIFIER_ERR_NO_MEM;
+		goto errret;
+	}
+
+	{
+		// TODO: get current time from a trusted clock source
+		double t;
+		sgx_status = ocall_current_time(&t);
+		if (sgx_status != SGX_SUCCESS) {
+			RTLS_ERR(
+				"failed to get current time, since ocall_current_time() failed. sgx_status: %#x\n",
+				sgx_status);
+			err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
+			goto errret;
+		}
+		current_time = (time_t)t;
+	}
+
+	if (endorsements) {
+		sgx_status = ocall_ecdsa_verify_evidence(
+			&err, (uint8_t *)pquote, quote_size, endorsements->ecdsa.version,
+			endorsements->ecdsa.pck_crl_issuer_chain,
+			endorsements->ecdsa.pck_crl_issuer_chain_size,
+			endorsements->ecdsa.root_ca_crl, endorsements->ecdsa.root_ca_crl_size,
+			endorsements->ecdsa.pck_crl, endorsements->ecdsa.pck_crl_size,
+			endorsements->ecdsa.tcb_info_issuer_chain,
+			endorsements->ecdsa.tcb_info_issuer_chain_size,
+			endorsements->ecdsa.tcb_info, endorsements->ecdsa.tcb_info_size,
+			endorsements->ecdsa.qe_identity_issuer_chain,
+			endorsements->ecdsa.qe_identity_issuer_chain_size,
+			endorsements->ecdsa.qe_identity, endorsements->ecdsa.qe_identity_size,
+			current_time, &collateral_expiration_status, &quote_verification_result,
+			is_sgx_ecdsa_qve ? &qve_report_info : NULL, supplemental_data_size,
+			p_supplemental_data);
+	} else {
+		sgx_status = ocall_ecdsa_verify_evidence(
+			&err, (uint8_t *)pquote, quote_size, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0,
+			NULL, 0, NULL, 0, NULL, 0, current_time, &collateral_expiration_status,
+			&quote_verification_result, is_sgx_ecdsa_qve ? &qve_report_info : NULL,
+			supplemental_data_size, p_supplemental_data);
+	}
+	if (sgx_status != SGX_SUCCESS || err != ENCLAVE_VERIFIER_ERR_NONE) {
+		RTLS_ERR(
+			"ocall_ecdsa_verify_evidence() failed. sgx_status: %#x, err: %#x, collateral_expiration_status: %#x, quote_verification_result: %#x\n",
+			sgx_status, err, collateral_expiration_status, quote_verification_result);
+		if (sgx_status == SGX_SUCCESS)
+			err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
+		goto errret;
+	}
+	RTLS_INFO(
+		"quote verification completed. quote_verification_result: %#x, collateral_expiration_status: %#x\n",
+		quote_verification_result, collateral_expiration_status);
+
+	if (is_sgx_ecdsa_qve) {
+		/* For security purposes, we have to re-full the rand field before calling sgx_tvl_verify_qve_report_and_identity(), since the parameter 'p_qve_reporret_info' is marked as '[in, out]' in ocall_ecdsa_verify_evidence() */
+		memcpy(qve_report_info.nonce.rand, rand_nonce, sizeof(rand_nonce));
+
+		quote3_error_t verify_qveid_ret = sgx_tvl_verify_qve_report_and_identity(
+			(uint8_t *)pquote, quote_size, &qve_report_info, current_time,
+			collateral_expiration_status, quote_verification_result,
+			p_supplemental_data, supplemental_data_size, qve_isvsvn_threshold);
+		if (verify_qveid_ret != SGX_QL_SUCCESS) {
+			RTLS_ERR("verify QvE report and identity failed. %04x\n", verify_qveid_ret);
+			err = SGX_ECDSA_VERIFIER_ERR_CODE((int)verify_qveid_ret);
+			goto errret;
+		} else
+			RTLS_INFO("verify QvE report and identity successfully.\n");
+	}
+
+	/* Check verification result */
+	switch (quote_verification_result) {
+	case SGX_QL_QV_RESULT_OK:
+		RTLS_INFO("verification completed successfully.\n");
+		err = ENCLAVE_VERIFIER_ERR_NONE;
+		break;
+	case SGX_QL_QV_RESULT_CONFIG_NEEDED:
+	case SGX_QL_QV_RESULT_OUT_OF_DATE:
+	case SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED:
+	case SGX_QL_QV_RESULT_SW_HARDENING_NEEDED:
+	case SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED:
+		RTLS_ERR("verification completed with Non-terminal result: %x\n",
+			 quote_verification_result);
+		err = SGX_ECDSA_VERIFIER_ERR_CODE((int)quote_verification_result);
+		break;
+	case SGX_QL_QV_RESULT_INVALID_SIGNATURE:
+	case SGX_QL_QV_RESULT_REVOKED:
+	case SGX_QL_QV_RESULT_UNSPECIFIED:
+	default:
+		RTLS_ERR("verification completed with Terminal result: %x\n",
+			 quote_verification_result);
+		err = SGX_ECDSA_VERIFIER_ERR_CODE((int)quote_verification_result);
+		break;
+	}
+
+errret:
+	if (p_supplemental_data)
+		free(p_supplemental_data);
+	return err;
+}
+
+#elif defined(OCCLUM)
+
+#else
+
+enclave_verifier_err_t ecdsa_verify_evidence(sgx_quote3_t *pquote, uint32_t quote_size,
 					     attestation_endorsement_t *endorsements)
 {
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
@@ -38,12 +194,7 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 	sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
 	uint32_t collateral_expiration_status = 1;
 	time_t current_time = 0;
-	sgx_isv_svn_t qve_isvsvn_threshold = 3;
-	sgx_status_t sgx_ret = SGX_SUCCESS;
-	quote3_error_t verify_qveid_ret = SGX_QL_ERROR_UNEXPECTED;
 	quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
-	sgx_ql_qe_report_info_t *qve_report_info = NULL;
-	uint8_t rand_nonce[16];
 
 	dcap_ret = sgx_qv_get_quote_supplemental_data_size(&supplemental_data_size);
 	if (dcap_ret == SGX_QL_SUCCESS) {
@@ -52,12 +203,12 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 		if (!p_supplemental_data) {
 			RTLS_ERR("failed to malloc supplemental data space.\n");
 			err = -ENCLAVE_VERIFIER_ERR_NO_MEM;
-			goto errout;
+			goto errret;
 		}
 	} else {
 		RTLS_ERR("failed to get quote supplemental data size by sgx qv: %04x\n", dcap_ret);
 		err = SGX_ECDSA_VERIFIER_ERR_CODE((int)dcap_ret);
-		goto errout;
+		goto errret;
 	}
 
 	current_time = time(NULL);
@@ -86,12 +237,12 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 
 		dcap_ret = sgx_qv_verify_quote((uint8_t *)pquote, (uint32_t)quote_size, &collateral,
 					       current_time, &collateral_expiration_status,
-					       &quote_verification_result, qve_report_info,
+					       &quote_verification_result, NULL,
 					       supplemental_data_size, p_supplemental_data);
 	} else {
 		dcap_ret = sgx_qv_verify_quote((uint8_t *)pquote, (uint32_t)quote_size, NULL,
 					       current_time, &collateral_expiration_status,
-					       &quote_verification_result, qve_report_info,
+					       &quote_verification_result, NULL,
 					       supplemental_data_size, p_supplemental_data);
 	}
 	if (dcap_ret == SGX_QL_SUCCESS)
@@ -128,10 +279,8 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 	}
 
 errret:
-	free(p_supplemental_data);
-errout:
-	free(qve_report_info);
-
+	if (p_supplemental_data)
+		free(p_supplemental_data);
 	return err;
 }
 #endif
@@ -224,31 +373,11 @@ sgx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx, attestation_evidence_t *e
 		break;
 	}
 #elif defined(SGX)
-	sgx_ecdsa_ctx_t *ecdsa_ctx = (sgx_ecdsa_ctx_t *)ctx->verifier_private;
-	sgx_enclave_id_t eid = (sgx_enclave_id_t)ecdsa_ctx->eid;
-	int sgx_status;
-	if (endorsements) {
-		sgx_status = ocall_ecdsa_verify_evidence(
-			&err, ctx, eid, ctx->opts->name, pquote, quote_size,
-			endorsements->ecdsa.version, endorsements->ecdsa.pck_crl_issuer_chain,
-			endorsements->ecdsa.pck_crl_issuer_chain_size,
-			endorsements->ecdsa.root_ca_crl, endorsements->ecdsa.root_ca_crl_size,
-			endorsements->ecdsa.pck_crl, endorsements->ecdsa.pck_crl_size,
-			endorsements->ecdsa.tcb_info_issuer_chain,
-			endorsements->ecdsa.tcb_info_issuer_chain_size,
-			endorsements->ecdsa.tcb_info, endorsements->ecdsa.tcb_info_size,
-			endorsements->ecdsa.qe_identity_issuer_chain,
-			endorsements->ecdsa.qe_identity_issuer_chain_size,
-			endorsements->ecdsa.qe_identity, endorsements->ecdsa.qe_identity_size);
-	} else {
-		sgx_status = ocall_ecdsa_verify_evidence(&err, ctx, eid, ctx->opts->name, pquote,
-							 quote_size, 0, NULL, 0, NULL, 0, NULL, 0,
-							 NULL, 0, NULL, 0, NULL, 0, NULL, 0);
-	}
-	if (sgx_status != SGX_SUCCESS || err != ENCLAVE_VERIFIER_ERR_NONE)
+	err = ecdsa_verify_evidence(ctx, pquote, quote_size, endorsements);
+	if (err != ENCLAVE_VERIFIER_ERR_NONE)
 		RTLS_ERR("failed to verify ecdsa\n");
 #else
-	err = ecdsa_verify_evidence(ctx, ctx->opts->name, pquote, quote_size, endorsements);
+	err = ecdsa_verify_evidence(pquote, quote_size, endorsements);
 	if (err != ENCLAVE_VERIFIER_ERR_NONE)
 		RTLS_ERR("failed to verify ecdsa\n");
 #endif
