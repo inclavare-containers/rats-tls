@@ -149,6 +149,15 @@ enclave_verifier_err_t ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx, sgx_qu
 			RTLS_INFO("verify QvE report and identity successfully.\n");
 	}
 
+	/* Note that even if the Verify Quote API returns SGX_QL_SUCCESS, we still need to check collateral_expiration_status and quote_verification_result. */
+
+	/* Check collateral expiration status */
+	if (collateral_expiration_status != 0) {
+		RTLS_ERR("verification failed because collateral is expired.\n");
+		err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
+		goto errret;
+	}
+
 	/* Check verification result */
 	switch (quote_verification_result) {
 	case SGX_QL_QV_RESULT_OK:
@@ -252,6 +261,13 @@ enclave_verifier_err_t ecdsa_verify_evidence(sgx_quote3_t *pquote, uint32_t quot
 		goto errret;
 	}
 
+	/* Check collateral expiration status */
+	if (collateral_expiration_status != 0) {
+		RTLS_ERR("verification failed because collateral is expired.\n");
+		err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
+		goto errret;
+	}
+
 	/* Check verification result */
 	switch (quote_verification_result) {
 	case SGX_QL_QV_RESULT_OK:
@@ -346,6 +362,13 @@ sgx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx, attestation_evidence_t *e
 	}
 
 	close(sgx_fd);
+
+	/* Check collateral expiration status */
+	if (collateral_expiration_status != 0) {
+		RTLS_ERR("verification failed because collateral is expired.\n");
+		free(p_supplemental_data);
+		return -ENCLAVE_VERIFIER_ERR_UNKNOWN;
+	}
 
 	/* Check verification result */
 	switch (quote_verification_result) {
