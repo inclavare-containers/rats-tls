@@ -730,7 +730,6 @@ enclave_verifier_err_t dice_parse_and_verify_claims_buffer(const uint8_t *pubkey
 	}
 	RATS_VERIFIER_CBOR_ASSERT(cbor_isa_map(root));
 	RATS_VERIFIER_CBOR_ASSERT(cbor_map_is_definite(root));
-	RTLS_DEBUG("custom_claims length: %zu\n", cbor_map_size(root));
 
 	{
 		bool found_pubkey_hash = false;
@@ -753,9 +752,6 @@ enclave_verifier_err_t dice_parse_and_verify_claims_buffer(const uint8_t *pubkey
 			unsigned char *value_handle = cbor_bytestring_handle(value);
 			size_t value_length = cbor_bytestring_length(value);
 
-			RTLS_DEBUG("custom_claims[%zu].key: '%.*s'\n", i, (int)key_length,
-				   key_handle);
-
 			/* Check pubkey-hash */
 			if (key_length == sizeof(CLAIM_PUBLIC_KEY_HASH) - 1 &&
 			    !strncmp((char *)key_handle, CLAIM_PUBLIC_KEY_HASH, key_length)) {
@@ -765,9 +761,13 @@ enclave_verifier_err_t dice_parse_and_verify_claims_buffer(const uint8_t *pubkey
 									value_length);
 				if (ret != ENCLAVE_VERIFIER_ERR_NONE)
 					goto err_claims;
+
+				/* The "pubkey-hash" is a internal claim and should not be returned to the user
+				 * of rats-tls. So we "continue" here. */
+				continue;
 			}
 
-			/* Create claim struct */
+			/* Put user-defined custom claims into the custom_claims list. */
 			claim_t *claim = &claims[count_claims];
 			/* NOTE: The cbor_string_handle(key) returns a non-null terminated string. And the
 			 * cbor_string_length(key) doesn't count the terminating '\0' byte. */
