@@ -260,10 +260,9 @@ static tls_wrapper_err_t verify_evidence_buffer(
 		RTLS_DEBUG("custom_claims %p, claims_size %zu\n", custom_claims,
 			   custom_claims_length);
 		for (size_t i = 0; i < custom_claims_length; ++i) {
-			RTLS_DEBUG(
-				"custom_claims[%zu] -> name: '%s' value_size: %zu value: '%.*s'\n",
-				i, custom_claims[i].name, custom_claims[i].value_size,
-				(int)custom_claims[i].value_size, custom_claims[i].value);
+			RTLS_DEBUG("custom_claims[%zu] -> name: '%s' value_size: %zu\n", i,
+				   custom_claims[i].name, custom_claims[i].value_size,
+				   (int)custom_claims[i].value_size);
 		}
 	}
 
