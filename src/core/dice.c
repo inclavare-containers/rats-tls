@@ -251,7 +251,7 @@ err:
 }
 
 enclave_attester_err_t dice_generate_evidence_buffer_with_tag(
-	const attestation_evidence_t *evidence, const uint8_t *claims_buffer /* optional */,
+	const attestation_evidence_t *evidence, const uint8_t *claims_buffer,
 	const size_t claims_buffer_size, uint8_t **evidence_buffer_out,
 	size_t *evidence_buffer_size_out)
 {
@@ -259,8 +259,8 @@ enclave_attester_err_t dice_generate_evidence_buffer_with_tag(
 	cbor_item_t *root = NULL;
 	cbor_item_t *array = NULL;
 
-	/* evidence_buffer is a tagged CBOR definite-length array */
-	/* evidence_buffer: <tag1>([ TEE_ECDSA_quote(pubkey-hash-value) ]) or <tag1>([ TEE_ECDSA_quote(customs-buffer-hash), claims-buffer ]) */
+	/* evidence_buffer is a tagged CBOR definite-length array with two entries */
+	/* evidence_buffer: <tag1>([ TEE_ECDSA_quote(customs-buffer-hash), claims-buffer ]) */
 	ret = ENCLAVE_ATTESTER_ERR_INVALID;
 	uint64_t tag_value = tag_of_evidence_type(evidence->type);
 	if (!tag_value)
@@ -270,7 +270,7 @@ enclave_attester_err_t dice_generate_evidence_buffer_with_tag(
 	root = cbor_new_tag(tag_value);
 	if (!root)
 		goto err;
-	array = cbor_new_definite_array(claims_buffer ? 2 : 1);
+	array = cbor_new_definite_array(2);
 	if (!array)
 		goto err;
 
@@ -284,11 +284,9 @@ enclave_attester_err_t dice_generate_evidence_buffer_with_tag(
 	if (!cbor_array_push(array,
 			     cbor_move(cbor_build_bytestring(evidence_raw_ref, evidence_raw_size))))
 		goto err;
-	if (claims_buffer) {
-		if (!cbor_array_push(array, cbor_move(cbor_build_bytestring(claims_buffer,
-									    claims_buffer_size))))
-			goto err;
-	}
+	if (!cbor_array_push(array,
+			     cbor_move(cbor_build_bytestring(claims_buffer, claims_buffer_size))))
+		goto err;
 	cbor_tag_set_item(root, array);
 	*evidence_buffer_size_out = cbor_serialize_alloc(root, evidence_buffer_out, NULL);
 	if (!*evidence_buffer_size_out)
@@ -442,7 +440,7 @@ enclave_verifier_err_t dice_parse_evidence_buffer_with_tag(const uint8_t *eviden
 	*claims_buffer_out = NULL;
 	*claims_buffer_size_out = 0;
 
-	/* Parse evidence_buffer as cbor data: an encoded tagged CBOR definite-length array with one or two entries. */
+	/* Parse evidence_buffer as cbor data: an encoded tagged CBOR definite-length array with two entries. */
 	struct cbor_load_result result;
 	root = cbor_load(evidence_buffer, evidence_buffer_size, &result);
 	if (result.error.code != CBOR_ERR_NONE) {
@@ -460,16 +458,15 @@ enclave_verifier_err_t dice_parse_evidence_buffer_with_tag(const uint8_t *eviden
 		goto err;
 	}
 
-	/* Size of array should be either 1 or 2 */
+	/* Size of array should be 2 */
 	array = cbor_tag_item(root);
 	RATS_VERIFIER_CBOR_ASSERT(cbor_isa_array(array));
 	RATS_VERIFIER_CBOR_ASSERT(cbor_array_is_definite(array));
 
 	ret = ENCLAVE_VERIFIER_ERR_CBOR;
-	if (cbor_array_size(array) != 1 && cbor_array_size(array) != 2) {
-		RTLS_ERR(
-			"Bad cbor data: invalid evidence array length: %zu, should be either 1 or 2\n",
-			cbor_array_size(array));
+	if (cbor_array_size(array) != 2) {
+		RTLS_ERR("Bad cbor data: invalid evidence array length: %zu, should be 2\n",
+			 cbor_array_size(array));
 	}
 
 	/* Recover evidence data */
@@ -481,25 +478,22 @@ enclave_verifier_err_t dice_parse_evidence_buffer_with_tag(const uint8_t *eviden
 			      cbor_tag_value(root), evidence) != 0)
 		goto err;
 
-	RTLS_DEBUG("claims_buffer found: %s\n", cbor_array_size(array) == 2 ? "true" : "false");
-	/* Also get claims_buffer if exists */
-	if (cbor_array_size(array) == 2) {
-		array_1 = cbor_array_get(array, 1);
-		RATS_VERIFIER_CBOR_ASSERT(cbor_isa_bytestring(array_1));
-		RATS_VERIFIER_CBOR_ASSERT(cbor_bytestring_is_definite(array_1));
-		claims_buffer_size = cbor_bytestring_length(array_1);
+	/* The 2nd element is claims_buffer */
+	array_1 = cbor_array_get(array, 1);
+	RATS_VERIFIER_CBOR_ASSERT(cbor_isa_bytestring(array_1));
+	RATS_VERIFIER_CBOR_ASSERT(cbor_bytestring_is_definite(array_1));
+	claims_buffer_size = cbor_bytestring_length(array_1);
 
-		claims_buffer = malloc(claims_buffer_size);
-		if (!claims_buffer) {
-			ret = ENCLAVE_VERIFIER_ERR_NO_MEM;
-			goto err;
-		}
-		memcpy(claims_buffer, cbor_bytestring_handle(array_1), claims_buffer_size);
-
-		*claims_buffer_out = claims_buffer;
-		claims_buffer = NULL;
-		*claims_buffer_size_out = claims_buffer_size;
+	claims_buffer = malloc(claims_buffer_size);
+	if (!claims_buffer) {
+		ret = ENCLAVE_VERIFIER_ERR_NO_MEM;
+		goto err;
 	}
+	memcpy(claims_buffer, cbor_bytestring_handle(array_1), claims_buffer_size);
+
+	*claims_buffer_out = claims_buffer;
+	claims_buffer = NULL;
+	*claims_buffer_size_out = claims_buffer_size;
 
 	ret = ENCLAVE_VERIFIER_ERR_NONE;
 err:

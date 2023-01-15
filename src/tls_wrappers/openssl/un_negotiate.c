@@ -176,12 +176,12 @@ static tls_wrapper_err_t verify_evidence_buffer(
 	    !tls_ctx->rtls_handle->verifier->opts->verify_evidence || !pubkey_hash)
 		return -TLS_WRAPPER_ERR_INVALID;
 
+	/* Get evidence struct and claims_buffer from evidence_buffer. */
 	if (!evidence_buffer) {
 		/* evidence_buffer is empty, which means that the other party is using a non-dice certificate or is using a nullattester */
-		RTLS_WARN("there is no evidence in peer's certificate.\n");
+		RTLS_WARN("there is no evidence buffer in peer's certificate.\n");
 		memset(&evidence, 0, sizeof(attestation_evidence_t));
 	} else {
-		/* Get evidence struct and claims_buffer(optional) from evidence_buffer */
 		enclave_verifier_err_t d_ret = dice_parse_evidence_buffer_with_tag(
 			evidence_buffer, evidence_buffer_size, &evidence, &claims_buffer,
 			&claims_buffer_size);
@@ -194,6 +194,7 @@ static tls_wrapper_err_t verify_evidence_buffer(
 	}
 	RTLS_DEBUG("evidence->type: '%s'\n", evidence.type);
 
+	/* Get endorsements (optional) from endorsements_buffer */
 	attestation_endorsement_t endorsements;
 	memset(&endorsements, 0, sizeof(attestation_endorsement_t));
 
@@ -212,11 +213,20 @@ static tls_wrapper_err_t verify_evidence_buffer(
 		}
 	}
 
-	if (claims_buffer) {
-		/* If claims_buffer exists, the hash value in evidence user-data field shall be the SHA256 hash of the `claims-buffer` byte string */
-		RTLS_DEBUG("check evidence user-data field with sha256 of claims_buffer\n");
-		uint8_t hash[SHA256_DIGEST_LENGTH];
-		size_t hash_len = SHA256_DIGEST_LENGTH;
+	/* Verify evidence and userdata. 
+	 * The hash value in evidence user-data field shall be the SHA256 hash of the `claims-buffer` byte string.
+	 */
+	RTLS_DEBUG("check evidence userdata field with sha256 of claims_buffer\n");
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+	size_t hash_len = SHA256_DIGEST_LENGTH;
+	if (!claims_buffer) {
+		/* Note that the custom_buffer will not be null if the evidence_buffer is successfully parsed.
+		 * So this branch indicates the case where there is no evidence_buffer in the certificate, i.e. a peer that does not support the evidence extension, or a peer that uses nullattester.
+		 */
+		RTLS_WARN(
+			"set hash value to 0, since there is no evidence buffer in peer's certificate.\n");
+		memset(hash, 0, hash_len);
+	} else {
 		SHA256(claims_buffer, claims_buffer_size, hash);
 		if (hash_len >= 16)
 			RTLS_DEBUG(
@@ -224,51 +234,14 @@ static tls_wrapper_err_t verify_evidence_buffer(
 				hash_len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
 				hash[6], hash[7], hash[8], hash[9], hash[10], hash[11], hash[12],
 				hash[13], hash[14], hash[15]);
-		ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence, hash, hash_len,
-							       has_endorsements ? &endorsements :
-										  NULL);
-		if (has_endorsements)
-			free_endorsements(evidence.type, &endorsements);
-		if (ret != TLS_WRAPPER_ERR_NONE) {
-			RTLS_ERR("failed to verify evidence: %#x\n", ret);
-			goto err;
-		}
-	} else {
-		/* Or the user-data field shall hold pubkey-hash-value */
-		/* NOTE: Since there is no universal way to get user-data field, we need a little trick here: generate sha265 pubkey-hash-value for the public key of the certificate being verified */
-		RTLS_DEBUG("check evidence user-data field with pubkey-hash-value\n");
-		uint8_t *pubkey_hash_value_buffer = NULL;
-		size_t pubkey_hash_value_buffer_size = 0;
-		enclave_attester_err_t gen_ret = dice_generate_pubkey_hash_value_buffer(
-			pubkey_hash, &pubkey_hash_value_buffer, &pubkey_hash_value_buffer_size);
-		if (gen_ret != ENCLAVE_ATTESTER_ERR_NONE) {
-			RTLS_ERR(
-				"failed to verify evidence: unable to verify pubkey-hash-value, internal error code: %#x\n",
-				gen_ret);
-			ret = gen_ret == ENCLAVE_ATTESTER_ERR_NO_MEM ? ENCLAVE_VERIFIER_ERR_NO_MEM :
-								       ENCLAVE_VERIFIER_ERR_INVALID;
-			if (has_endorsements)
-				free_endorsements(evidence.type, &endorsements);
-			goto err;
-		}
-		if (pubkey_hash_value_buffer_size >= 16) {
-			uint8_t *data = pubkey_hash_value_buffer;
-			RTLS_DEBUG(
-				"pubkey-hash-value [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
-				pubkey_hash_value_buffer_size, data[0], data[1], data[2], data[3],
-				data[4], data[5], data[6], data[7], data[8], data[9], data[10],
-				data[11], data[12], data[13], data[14], data[15]);
-		}
-		ret = tls_wrapper_verify_certificate_extension(
-			tls_ctx, &evidence, pubkey_hash_value_buffer, pubkey_hash_value_buffer_size,
-			has_endorsements ? &endorsements : NULL);
-		free(pubkey_hash_value_buffer);
-		if (has_endorsements)
-			free_endorsements(evidence.type, &endorsements);
-		if (ret != TLS_WRAPPER_ERR_NONE) {
-			RTLS_ERR("failed to verify evidence: %#x\n", ret);
-			goto err;
-		}
+	}
+	ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence, hash, hash_len,
+						       has_endorsements ? &endorsements : NULL);
+	if (has_endorsements)
+		free_endorsements(evidence.type, &endorsements);
+	if (ret != TLS_WRAPPER_ERR_NONE) {
+		RTLS_ERR("failed to verify evidence: %#x\n", ret);
+		goto err;
 	}
 
 	/* Parse and verify claims buffer */
