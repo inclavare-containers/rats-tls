@@ -67,64 +67,33 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	uint8_t *claims_buffer = NULL;
 	size_t claims_buffer_size = 0;
 
-	/* Check if we need to create claims_buffer. */
-	/* For sha256, the length of pubkey-hash-value is 36 bytes, so here we assume that the size of user-data field is
-	 * always larger than the length of pubkey-hash-value. */
-	// TODO: We need a way to check the max length of user-data that attester accept.
-	if (ctx->config.custom_claims_length) {
-		/* Using hash of claims_buffer as user data */
-		RTLS_DEBUG("fill evidence user-data field with sha256 of claims_buffer\n");
+	/* Using sha256 hash of claims_buffer as user data */
+	RTLS_DEBUG("fill evidence user-data field with sha256 of claims_buffer\n");
+	/* Generate claims_buffer */
+	enclave_attester_err_t a_ret = dice_generate_claims_buffer(hash, ctx->config.custom_claims,
+								   ctx->config.custom_claims_length,
+								   &claims_buffer,
+								   &claims_buffer_size);
+	if (a_ret != ENCLAVE_ATTESTER_ERR_NONE) {
+		RTLS_DEBUG("generate claims_buffer failed. a_ret: %#x\n", a_ret);
+		return a_ret;
+	}
 
-		/* Generate claims_buffer */
-		enclave_attester_err_t ret = dice_generate_claims_buffer(
-			hash, ctx->config.custom_claims, ctx->config.custom_claims_length,
-			&claims_buffer, &claims_buffer_size);
-		if (ret != ENCLAVE_ATTESTER_ERR_NONE)
-			return ret;
-		/* Note here we reuse `uint8_t hash[hash_size]` to store sha256 hash of claims_buffer */
-		ctx->crypto_wrapper->opts->gen_sha256(ctx->crypto_wrapper, claims_buffer,
-						      claims_buffer_size, hash);
-		if (hash_size >= 16)
-			RTLS_DEBUG(
-				"evidence user-data field [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
-				(size_t)hash_size, hash[0], hash[1], hash[2], hash[3], hash[4],
-				hash[5], hash[6], hash[7], hash[8], hash[9], hash[10], hash[11],
-				hash[12], hash[13], hash[14], hash[15]);
-		enclave_attester_err_t q_err;
-		q_err = ctx->attester->opts->collect_evidence(
-			ctx->attester, &evidence, ctx->config.cert_algo, hash, hash_size);
-		if (q_err != ENCLAVE_ATTESTER_ERR_NONE) {
-			free(claims_buffer);
-			claims_buffer = NULL;
-			return q_err;
-		}
-	} else {
-		/* Using pubkey-hash-value as user data */
-		RTLS_DEBUG("fill evidence user-data field with pubkey-hash-value\n");
-		uint8_t *pubkey_hash_value_buffer = NULL;
-		size_t pubkey_hash_value_buffer_size = 0;
-		enclave_attester_err_t d_ret = dice_generate_pubkey_hash_value_buffer(
-			hash, &pubkey_hash_value_buffer, &pubkey_hash_value_buffer_size);
-		if (d_ret != ENCLAVE_ATTESTER_ERR_NONE) {
-			RTLS_ERR("failed to generate pubkey-hash-value\n");
-			return d_ret;
-		}
-		if (pubkey_hash_value_buffer_size >= 16) {
-			uint8_t *data = pubkey_hash_value_buffer;
-			RTLS_DEBUG(
-				"evidence user-data field [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
-				pubkey_hash_value_buffer_size, data[0], data[1], data[2], data[3],
-				data[4], data[5], data[6], data[7], data[8], data[9], data[10],
-				data[11], data[12], data[13], data[14], data[15]);
-		}
-		enclave_attester_err_t q_err;
-		q_err = ctx->attester->opts->collect_evidence(ctx->attester, &evidence,
-							      ctx->config.cert_algo,
-							      pubkey_hash_value_buffer,
-							      pubkey_hash_value_buffer_size);
-		free(pubkey_hash_value_buffer);
-		if (q_err != ENCLAVE_ATTESTER_ERR_NONE)
-			return q_err;
+	/* Note here we reuse `uint8_t hash[hash_size]` to store sha256 hash of claims_buffer */
+	ctx->crypto_wrapper->opts->gen_sha256(ctx->crypto_wrapper, claims_buffer,
+					      claims_buffer_size, hash);
+	if (hash_size >= 16)
+		RTLS_DEBUG(
+			"evidence user-data field [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
+			(size_t)hash_size, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
+			hash[6], hash[7], hash[8], hash[9], hash[10], hash[11], hash[12], hash[13],
+			hash[14], hash[15]);
+	enclave_attester_err_t q_err = ctx->attester->opts->collect_evidence(
+		ctx->attester, &evidence, ctx->config.cert_algo, hash, hash_size);
+	if (q_err != ENCLAVE_ATTESTER_ERR_NONE) {
+		free(claims_buffer);
+		claims_buffer = NULL;
+		return q_err;
 	}
 	RTLS_DEBUG("evidence.type: '%s'\n", evidence.type);
 
