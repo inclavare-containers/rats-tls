@@ -13,7 +13,8 @@
 enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_verifier_ctx_t *ctx,
 					     const char *name, attestation_evidence_t *evidence,
 					     __attribute__((unused)) uint32_t evidence_len,
-					     uint8_t *hash, uint32_t hash_len)
+					     uint8_t *hash, uint32_t hash_len,
+					     attestation_endorsement_t *endorsements)
 {
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
 
@@ -45,10 +46,41 @@ enclave_verifier_err_t ecdsa_verify_evidence(__attribute__((unused)) enclave_ver
 	time_t current_time = time(NULL);
 	sgx_ql_qv_result_t quote_verification_result = SGX_QL_QV_RESULT_UNSPECIFIED;
 	uint32_t collateral_expiration_status = 1;
-	dcap_ret = tdx_qv_verify_quote(evidence->tdx.quote, (uint32_t)(evidence->tdx.quote_len),
-				       NULL, current_time, &collateral_expiration_status,
-				       &quote_verification_result, NULL, supplemental_data_size,
-				       p_supplemental_data);
+
+	if (endorsements) {
+		sgx_ql_qve_collateral_t collateral = {
+			.version = endorsements->ecdsa.version,
+			.tee_type = 0x00000081, /* TDX */
+			.pck_crl_issuer_chain = endorsements->ecdsa.pck_crl_issuer_chain,
+			.pck_crl_issuer_chain_size = endorsements->ecdsa.pck_crl_issuer_chain_size,
+			.root_ca_crl = endorsements->ecdsa.root_ca_crl,
+			.root_ca_crl_size = endorsements->ecdsa.root_ca_crl_size,
+			.pck_crl = endorsements->ecdsa.pck_crl,
+			.pck_crl_size = endorsements->ecdsa.pck_crl_size,
+			.tcb_info_issuer_chain = endorsements->ecdsa.tcb_info_issuer_chain,
+			.tcb_info_issuer_chain_size =
+				endorsements->ecdsa.tcb_info_issuer_chain_size,
+			.tcb_info = endorsements->ecdsa.tcb_info,
+			.tcb_info_size = endorsements->ecdsa.tcb_info_size,
+			.qe_identity_issuer_chain = endorsements->ecdsa.qe_identity_issuer_chain,
+			.qe_identity_issuer_chain_size =
+				endorsements->ecdsa.qe_identity_issuer_chain_size,
+			.qe_identity = endorsements->ecdsa.qe_identity,
+			.qe_identity_size = endorsements->ecdsa.qe_identity_size,
+		};
+
+		dcap_ret = tdx_qv_verify_quote(evidence->tdx.quote,
+					       (uint32_t)(evidence->tdx.quote_len), &collateral,
+					       current_time, &collateral_expiration_status,
+					       &quote_verification_result, NULL,
+					       supplemental_data_size, p_supplemental_data);
+	} else {
+		dcap_ret = tdx_qv_verify_quote(evidence->tdx.quote,
+					       (uint32_t)(evidence->tdx.quote_len), NULL,
+					       current_time, &collateral_expiration_status,
+					       &quote_verification_result, NULL,
+					       supplemental_data_size, p_supplemental_data);
+	}
 	if (dcap_ret == SGX_QL_SUCCESS) {
 		RTLS_INFO("tdx qv verifies quote successfully.\n");
 	} else {
@@ -90,13 +122,15 @@ errret:
 
 enclave_verifier_err_t tdx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx,
 						 attestation_evidence_t *evidence, uint8_t *hash,
-						 __attribute__((unused)) uint32_t hash_len)
+						 __attribute__((unused)) uint32_t hash_len,
+						 __attribute__((unused))
+						 attestation_endorsement_t *endorsements)
 {
 	RTLS_DEBUG("ctx %p, evidence %p, hash %p\n", ctx, evidence, hash);
 
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
 	err = ecdsa_verify_evidence(ctx, ctx->opts->name, evidence, sizeof(attestation_evidence_t),
-				    hash, hash_len);
+				    hash, hash_len, endorsements);
 	if (err != ENCLAVE_VERIFIER_ERR_NONE)
 		RTLS_ERR("failed to verify ecdsa\n");
 

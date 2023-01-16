@@ -13,7 +13,9 @@
 /* Refer to explanation in sgx_la_collect_evidence */
 enclave_verifier_err_t sgx_la_verify_evidence(enclave_verifier_ctx_t *ctx,
 					      attestation_evidence_t *evidence, uint8_t *hash,
-					      uint32_t hash_len)
+					      uint32_t hash_len,
+					      __attribute__((unused))
+					      attestation_endorsement_t *endorsements)
 {
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
 

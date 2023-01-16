@@ -1,5 +1,5 @@
 # Normal and occlum mode
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -fPIC")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -fPIC -Werror=implicit-function-declaration")
 set(RATS_TLS_LDFLAGS "-fPIC -Bsymbolic -ldl")
 
 if(OCCLUM)

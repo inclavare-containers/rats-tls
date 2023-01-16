@@ -54,7 +54,8 @@ static sgx_enclave_id_t load_enclave(bool debug_enclave)
 
 int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 			    char *verifier_type, char *tls_type, char *crypto_type, bool mutual,
-			    bool debug_enclave, char *ip, int port, bool verdictd)
+			    bool provide_endorsements, bool debug_enclave, char *ip, int port,
+			    bool verdictd)
 {
 	uint32_t s_ip = inet_addr(ip);
 	uint16_t s_port = htons((uint16_t)port);
@@ -68,6 +69,8 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 	unsigned long flags = 0;
 	if (mutual)
 		flags |= RATS_TLS_CONF_FLAGS_MUTUAL;
+	if (provide_endorsements)
+		flags |= RATS_TLS_CONF_FLAGS_PROVIDE_ENDORSEMENTS;
 
 	int ret = 0;
 	int sgx_status = ecall_rtls_client_startup((sgx_enclave_id_t)enclave_id, &ret,
@@ -99,7 +102,8 @@ int user_callback(void *args)
 
 int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 			    char *verifier_type, char *tls_type, char *crypto_type, bool mutual,
-			    bool debug_enclave, char *ip, int port, bool verdictd)
+			    bool provide_endorsements, bool debug_enclave, char *ip, int port,
+			    bool verdictd)
 {
 	rats_tls_conf_t conf;
 
@@ -112,6 +116,8 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 	conf.cert_algo = RATS_TLS_CERT_ALGO_DEFAULT;
 	if (mutual)
 		conf.flags |= RATS_TLS_CONF_FLAGS_MUTUAL;
+	if (provide_endorsements)
+		conf.flags |= RATS_TLS_CONF_FLAGS_PROVIDE_ENDORSEMENTS;
 
 	/* Create a socket that uses an internet IPv4 address,
 	 * Sets the socket to be stream based (TCP),
@@ -242,7 +248,7 @@ int main(int argc, char **argv)
 	printf("    - Welcome to RATS-TLS sample client program\n");
 #endif
 
-	char *const short_options = "a:v:t:c:ml:i:p:DEh";
+	char *const short_options = "a:v:t:c:mel:i:p:DEh";
 	// clang-format off
 	struct option long_options[] = {
 		{ "attester", required_argument, NULL, 'a' },
@@ -250,6 +256,7 @@ int main(int argc, char **argv)
 		{ "tls", required_argument, NULL, 't' },
 		{ "crypto", required_argument, NULL, 'c' },
 		{ "mutual", no_argument, NULL, 'm' },
+		{ "endorsements", no_argument, NULL, 'e' },
 		{ "log-level", required_argument, NULL, 'l' },
 		{ "ip", required_argument, NULL, 'i' },
 		{ "port", required_argument, NULL, 'p' },
@@ -265,6 +272,7 @@ int main(int argc, char **argv)
 	char *tls_type = "";
 	char *crypto_type = "";
 	bool mutual = false;
+	bool provide_endorsements = false;
 	rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;
 	char *srv_ip = DEFAULT_IP;
 	int port = DEFAULT_PORT;
@@ -289,6 +297,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			mutual = true;
+			break;
+		case 'e':
+			provide_endorsements = true;
 			break;
 		case 'l':
 			if (!strcasecmp(optarg, "debug"))
@@ -327,6 +338,7 @@ int main(int argc, char **argv)
 			     "        --tls/-t value        set the type of tls wrapper\n"
 			     "        --crypto/-c value     set the type of crypto wrapper\n"
 			     "        --mutual/-m           set to enable mutual attestation\n"
+			     "        --endorsements/-e     set to let attester provide endorsements\n"
 			     "        --log-level/-l        set the log level\n"
 			     "        --ip/-i               set the listening ip address\n"
 			     "        --port/-p             set the listening tcp port\n"
@@ -342,5 +354,6 @@ int main(int argc, char **argv)
 	global_log_level = log_level;
 
 	return rats_tls_client_startup(log_level, attester_type, verifier_type, tls_type,
-				       crypto_type, mutual, debug_enclave, srv_ip, port, verdictd);
+				       crypto_type, mutual, provide_endorsements, debug_enclave,
+				       srv_ip, port, verdictd);
 }

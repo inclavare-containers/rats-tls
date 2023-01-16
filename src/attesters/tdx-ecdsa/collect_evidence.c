@@ -89,7 +89,7 @@ enclave_attester_err_t tdx_get_tdel_data(enclave_attester_ctx_t *ctx,
 	}
 
 	if (tdel_data_sz == sizeof(tdel_data))
-		RTLS_WARN("TDEL data buffer (%d-byte) may be too small\n", sizeof(tdel_data));
+		RTLS_WARN("TDEL data buffer (%zu-byte) may be too small\n", sizeof(tdel_data));
 
 	*tdel_data_len = tdel_data_sz;
 	memcpy(&(evidence->tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]), tdel_data, tdel_data_sz);

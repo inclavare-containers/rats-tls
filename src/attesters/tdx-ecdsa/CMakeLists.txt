@@ -19,11 +19,14 @@ set(LIBRARY_DIRS ${CMAKE_BINARY_DIR}/src
 link_directories(${LIBRARY_DIRS})
 
 # Set extra link library
-set(EXTRA_LINK_LIBRARY tdx_attest)
+set(EXTRA_LINK_LIBRARY tdx_attest
+            sgx_dcap_quoteverify # for tee_qv_get_collateral
+            )
 
 # Set source file
 set(SOURCES cleanup.c
             collect_evidence.c
+            collect_endorsements.c
             init.c
             main.c
             pre_init.c

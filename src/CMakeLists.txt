@@ -33,6 +33,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/core/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/cpu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/dice.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/endorsement.c
     ${CMAKE_CURRENT_SOURCE_DIR}/core/claim.c
     ${CMAKE_CURRENT_SOURCE_DIR}/api/rats_tls_cleanup.c
     ${CMAKE_CURRENT_SOURCE_DIR}/api/rats_tls_init.c

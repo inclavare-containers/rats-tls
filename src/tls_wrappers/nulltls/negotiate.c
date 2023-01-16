@@ -24,7 +24,7 @@ tls_wrapper_err_t nulltls_negotiate(tls_wrapper_ctx_t *ctx, int fd)
 		snprintf(evidence.type, sizeof(evidence.type), "%s", "nulltls");
 
 		err = tls_wrapper_verify_certificate_extension(ctx, &evidence, hash,
-							       SHA256_HASH_SIZE);
+							       SHA256_HASH_SIZE, NULL);
 		if (err != TLS_WRAPPER_ERR_NONE) {
 			RTLS_ERR("ERROR: failed to verify certificate extension\n");
 			return err;
