@@ -157,7 +157,7 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	if (!cert)
 		goto err;
 
-	X509_set_version(cert, 3);
+	X509_set_version(cert, 2 /* x509 version 3 cert */);
 	ASN1_INTEGER_set(X509_get_serialNumber(cert), CERT_SERIAL_NUMBER);
 	if (!using_cert_nonce) {
 		/* WORKAROUND: allow 1 hour delay for the systems behind current clock */
