@@ -113,6 +113,7 @@ set(RTLS_INCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/api.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/log.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/sgx.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/tls_wrapper.h
+                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/hash.h
                        )
 install(DIRECTORY DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH}/rats-tls)
 install(FILES ${RTLS_INCLUDE_FILES}

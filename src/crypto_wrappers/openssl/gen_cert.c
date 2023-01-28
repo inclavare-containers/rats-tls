@@ -7,7 +7,6 @@
 #include <string.h>
 #include <rats-tls/log.h>
 #include <rats-tls/crypto_wrapper.h>
-#include <rats-tls/oid.h>
 #include "internal/dice.h"
 #include "openssl.h"
 

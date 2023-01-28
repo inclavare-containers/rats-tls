@@ -156,7 +156,8 @@ int evidence_from_raw(const uint8_t *data, size_t size, uint64_t tag,
 * DICE related attester functions
 */
 
-enclave_attester_err_t dice_generate_pubkey_hash_value_buffer(const uint8_t *pubkey_hash,
+enclave_attester_err_t dice_generate_pubkey_hash_value_buffer(hash_algo_t pubkey_hash_algo,
+							      const uint8_t *pubkey_hash,
 							      uint8_t **pubkey_hash_value_buffer,
 							      size_t *pubkey_hash_value_buffer_size)
 {
@@ -173,11 +174,21 @@ enclave_attester_err_t dice_generate_pubkey_hash_value_buffer(const uint8_t *pub
 	if (!root)
 		goto err;
 	/* Note that since IANA assigns range of 0-63 to the hash function id, we can assume that uint8 is sufficient */
-	if (!cbor_array_push(root,
-			     cbor_move(cbor_build_uint8(1)))) /* hash-alg-id '1' for sha-256 */
+	if (!cbor_array_push(root, cbor_move(cbor_build_uint8(pubkey_hash_algo))))
 		goto err;
-	if (!cbor_array_push(root, cbor_move(cbor_build_bytestring(pubkey_hash, 32))))
+
+	size_t hash_size = hash_size_of_algo(pubkey_hash_algo);
+	if (hash_size == 0) {
+		RTLS_FATAL(
+			"failed to generate pubkey-hash-value buffer: unsupported hash algo id: %u\n",
+			pubkey_hash_algo);
+		ret = ENCLAVE_ATTESTER_ERR_INVALID;
 		goto err;
+	}
+
+	if (!cbor_array_push(root, cbor_move(cbor_build_bytestring(pubkey_hash, hash_size))))
+		goto err;
+
 	*pubkey_hash_value_buffer_size = cbor_serialize_alloc(root, pubkey_hash_value_buffer, NULL);
 	if (!*pubkey_hash_value_buffer_size)
 		goto err;
@@ -189,11 +200,10 @@ err:
 	return ret;
 }
 
-enclave_attester_err_t dice_generate_claims_buffer(const uint8_t *pubkey_hash,
-						   const claim_t *custom_claims,
-						   size_t custom_claims_length,
-						   uint8_t **claims_buffer_out,
-						   size_t *claims_buffer_size_out)
+enclave_attester_err_t
+dice_generate_claims_buffer(hash_algo_t pubkey_hash_algo, const uint8_t *pubkey_hash,
+			    const claim_t *custom_claims, size_t custom_claims_length,
+			    uint8_t **claims_buffer_out, size_t *claims_buffer_size_out)
 {
 	enclave_attester_err_t ret;
 	cbor_item_t *root = NULL;
@@ -208,7 +218,8 @@ enclave_attester_err_t dice_generate_claims_buffer(const uint8_t *pubkey_hash,
 		goto err;
 
 	/* Prepare custom claim `pubkey-hash` and add to map */
-	ret = dice_generate_pubkey_hash_value_buffer(pubkey_hash, &pubkey_hash_value_buffer,
+	ret = dice_generate_pubkey_hash_value_buffer(pubkey_hash_algo, pubkey_hash,
+						     &pubkey_hash_value_buffer,
 						     &pubkey_hash_value_buffer_size);
 	if (ret != ENCLAVE_ATTESTER_ERR_NONE)
 		goto err;
@@ -634,9 +645,10 @@ err:
 	return ret;
 }
 
-enclave_verifier_err_t dice_parse_and_verify_pubkey_hash(const uint8_t *pubkey_hash,
-							 const uint8_t *pubkey_hash_value_buffer,
-							 size_t pubkey_hash_value_buffer_size)
+enclave_verifier_err_t dice_parse_pubkey_hash_value_buffer(const uint8_t *pubkey_hash_value_buffer,
+							   size_t pubkey_hash_value_buffer_size,
+							   hash_algo_t *pubkey_hash_algo_out,
+							   uint8_t *pubkey_hash_out)
 {
 	enclave_verifier_err_t ret;
 	cbor_item_t *root = NULL;
@@ -666,10 +678,14 @@ enclave_verifier_err_t dice_parse_and_verify_pubkey_hash(const uint8_t *pubkey_h
 
 	array_0 = cbor_array_get(root, 0);
 	RATS_VERIFIER_CBOR_ASSERT(cbor_isa_uint(array_0));
-	RATS_VERIFIER_CBOR_ASSERT(cbor_int_get_width(array_0) == CBOR_INT_8);
-	if (cbor_get_uint8(array_0) != 1) { /* hash-alg-id '1' for sha-256 */
-		RTLS_ERR("Unsupported hash-alg-id: %u, sha-256(1) expected\n",
-			 cbor_get_uint8(array_0));
+	uint64_t hash_algo_id = cbor_get_int(array_0);
+
+	size_t hash_size = hash_size_of_algo(hash_algo_id);
+	if (hash_size == 0) {
+		RTLS_ERR(
+			"unsupported hash-alg-id: %lu, sha-256(1), sha-384(7), sha-512(8) are expected\n",
+			hash_algo_id);
+		ret = ENCLAVE_ATTESTER_ERR_INVALID;
 		goto err;
 	}
 
@@ -677,18 +693,15 @@ enclave_verifier_err_t dice_parse_and_verify_pubkey_hash(const uint8_t *pubkey_h
 	RATS_VERIFIER_CBOR_ASSERT(cbor_isa_bytestring(array_1));
 	RATS_VERIFIER_CBOR_ASSERT(cbor_bytestring_is_definite(array_1));
 
-	if (cbor_bytestring_length(array_1) != 32) { /* sha256 */
+	if (cbor_bytestring_length(array_1) != hash_size) { /* sha256 */
 		RTLS_ERR("unmatched hash value length: %zu, %zu expected\n",
-			 cbor_bytestring_length(array_1), (size_t)32);
+			 cbor_bytestring_length(array_1), hash_size);
 		ret = ENCLAVE_VERIFIER_ERR_INVALID;
 		goto err;
 	}
 
-	if (memcmp(cbor_bytestring_handle(array_1), pubkey_hash, 32)) {
-		RTLS_ERR("unmatched hash value with public key.\n");
-		ret = ENCLAVE_VERIFIER_ERR_INVALID;
-		goto err;
-	}
+	memcpy(pubkey_hash_out, cbor_bytestring_handle(array_1), hash_size);
+	*pubkey_hash_algo_out = hash_algo_id;
 
 	ret = ENCLAVE_VERIFIER_ERR_NONE;
 err:
@@ -701,17 +714,30 @@ err:
 	return ret;
 }
 
-enclave_verifier_err_t dice_parse_and_verify_claims_buffer(const uint8_t *pubkey_hash,
-							   const uint8_t *claims_buffer,
-							   size_t claims_buffer_size,
-							   claim_t **custom_claims_out,
-							   size_t *custom_claims_length_out)
+/* Parse the claims buffer and return the custom claims and pubkey hash. Note that
+ * the content of the claims buffer is untrusted user input, and its format match
+ * the format defined by Interoperable RA-TLS.
+ * 
+ * claims_buffer: The claims buffer to be parsed.
+ * claims_buffer_size: Size of claims buffer in bytes.
+ * pubkey_hash_algo_out: The `hash_algo_id` of pubkey `hash-entry`
+ * pubkey_hash_out: A buffer for writing pubkey hash to, should be large enough
+ *     (MAX_HASH_SIZE) to write the hash.
+ * custom_claims_out: The list of claims stored in the claims buffer, user-defined
+ *     custom claims included only. The caller should manage its memory.
+ * custom_claims_length_out: The length of claims list.
+ *  */
+enclave_verifier_err_t
+dice_parse_claims_buffer(const uint8_t *claims_buffer, size_t claims_buffer_size,
+			 hash_algo_t *pubkey_hash_algo_out, uint8_t *pubkey_hash_out,
+			 claim_t **custom_claims_out, size_t *custom_claims_length_out)
 {
 	enclave_verifier_err_t ret;
 
 	claim_t *custom_claims = NULL;
 	size_t custom_claims_length = 0;
 
+	*pubkey_hash_algo_out = HASH_ALGO_RESERVED;
 	*custom_claims_out = NULL;
 	*custom_claims_length_out = 0;
 
@@ -757,8 +783,10 @@ enclave_verifier_err_t dice_parse_and_verify_claims_buffer(const uint8_t *pubkey
 			    !strncmp((char *)key_handle, CLAIM_PUBLIC_KEY_HASH, key_length)) {
 				found_pubkey_hash = true;
 
-				ret = dice_parse_and_verify_pubkey_hash(pubkey_hash, value_handle,
-									value_length);
+				ret = dice_parse_pubkey_hash_value_buffer(value_handle,
+									  value_length,
+									  pubkey_hash_algo_out,
+									  pubkey_hash_out);
 				if (ret != ENCLAVE_VERIFIER_ERR_NONE)
 					goto err_claims;
 

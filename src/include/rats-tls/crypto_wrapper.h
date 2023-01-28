@@ -13,6 +13,7 @@
 #include <rats-tls/err.h>
 #include <rats-tls/api.h>
 #include <rats-tls/cert.h>
+#include <rats-tls/hash.h>
 
 #define CRYPTO_WRAPPER_TYPE_MAX 32
 
@@ -37,8 +38,8 @@ typedef struct {
 					    uint8_t *privkey_buf, unsigned int *privkey_len);
 	crypto_wrapper_err_t (*gen_pubkey_hash)(crypto_wrapper_ctx_t *ctx,
 						rats_tls_cert_algo_t algo, uint8_t *hash);
-	crypto_wrapper_err_t (*gen_sha256)(crypto_wrapper_ctx_t *ctx, uint8_t *data, size_t size,
-					   uint8_t *hash);
+	crypto_wrapper_err_t (*gen_hash)(crypto_wrapper_ctx_t *ctx, hash_algo_t hash_algo,
+					 const uint8_t *data, size_t size, uint8_t *hash);
 	crypto_wrapper_err_t (*gen_cert)(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
 					 rats_tls_cert_info_t *cert_info);
 	crypto_wrapper_err_t (*cleanup)(crypto_wrapper_ctx_t *ctx);
