@@ -357,6 +357,7 @@ sgx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx, attestation_evidence_t *e
 
 	if (ioctl(sgx_fd, SGXIOC_VER_DCAP_QUOTE, &ver_quote_arg) < 0) {
 		RTLS_ERR("failed to ioctl verify quote: %s\n", strerror(errno));
+		free(p_supplemental_data);
 		close(sgx_fd);
 		return -ENCLAVE_VERIFIER_ERR_INVALID;
 	}
@@ -394,6 +395,7 @@ sgx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx, attestation_evidence_t *e
 		err = SGX_ECDSA_VERIFIER_ERR_CODE((int)quote_verification_result);
 		break;
 	}
+	free(p_supplemental_data);
 #elif defined(SGX)
 	err = ecdsa_verify_evidence(ctx, pquote, quote_size, endorsements);
 	if (err != ENCLAVE_VERIFIER_ERR_NONE)
