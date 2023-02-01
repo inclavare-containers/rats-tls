@@ -70,18 +70,17 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	/* Using sha256 hash of claims_buffer as user data */
 	RTLS_DEBUG("fill evidence user-data field with sha256 of claims_buffer\n");
 	/* Generate claims_buffer */
-	enclave_attester_err_t a_ret = dice_generate_claims_buffer(hash, ctx->config.custom_claims,
-								   ctx->config.custom_claims_length,
-								   &claims_buffer,
-								   &claims_buffer_size);
+	enclave_attester_err_t a_ret = dice_generate_claims_buffer(
+		HASH_ALGO_SHA256, hash, ctx->config.custom_claims, ctx->config.custom_claims_length,
+		&claims_buffer, &claims_buffer_size);
 	if (a_ret != ENCLAVE_ATTESTER_ERR_NONE) {
 		RTLS_DEBUG("generate claims_buffer failed. a_ret: %#x\n", a_ret);
 		return a_ret;
 	}
 
 	/* Note here we reuse `uint8_t hash[hash_size]` to store sha256 hash of claims_buffer */
-	ctx->crypto_wrapper->opts->gen_sha256(ctx->crypto_wrapper, claims_buffer,
-					      claims_buffer_size, hash);
+	ctx->crypto_wrapper->opts->gen_hash(ctx->crypto_wrapper, HASH_ALGO_SHA256, claims_buffer,
+					    claims_buffer_size, hash);
 	if (hash_size >= 16)
 		RTLS_DEBUG(
 			"evidence user-data field [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",

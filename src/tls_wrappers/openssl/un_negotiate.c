@@ -6,20 +6,11 @@
 
 #define _GNU_SOURCE
 #include <string.h>
-#include <assert.h>
 #include <rats-tls/log.h>
 #include <rats-tls/err.h>
 #include <rats-tls/tls_wrapper.h>
-#include <rats-tls/oid.h>
-#include <rats-tls/csv.h>
 #include <internal/core.h>
 #include <internal/dice.h>
-// clang-format off
-#ifdef SGX
-#include "sgx_report.h"
-#endif
-#include "sgx_quote_3.h"
-// clang-format on
 #include "per_thread.h"
 #include "openssl.h"
 
@@ -48,35 +39,6 @@ static int rtls_memcpy_s(void *dst, uint32_t dst_size, const void *src, uint32_t
 
 done:
 	return result;
-}
-
-static crypto_wrapper_err_t calc_pubkey_sha256(X509 *cert, uint8_t *hash)
-{
-	EVP_PKEY *pkey = X509_get_pubkey(cert);
-	if (!pkey) {
-		RTLS_ERR("Unable to decode the public key from certificate\n");
-		return -CRYPTO_WRAPPER_ERR_INVALID;
-	}
-
-	crypto_wrapper_err_t err = CRYPTO_WRAPPER_ERR_NONE;
-
-	int len = i2d_PUBKEY(pkey, NULL);
-	unsigned char buf[len];
-	unsigned char *p = buf;
-	len = i2d_PUBKEY(pkey, &p);
-
-	SHA256(buf, len, hash);
-
-	// clang-format off
-	RTLS_DEBUG("The hash of public key [%d] %02x%02x%02x%02x%02x%02x%02x%02x...%02x%02x%02x%02x\n",
-		   SHA256_HASH_SIZE, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
-		   hash[SHA256_HASH_SIZE - 4], hash[SHA256_HASH_SIZE - 3], hash[SHA256_HASH_SIZE - 2],
-		   hash[SHA256_HASH_SIZE - 1]);
-	// clang-format on
-
-	EVP_PKEY_free(pkey);
-
-	return err;
 }
 
 static int find_extension_from_cert(X509 *cert, const char *oid, uint8_t **data_out,
@@ -150,196 +112,6 @@ static int find_extension_from_cert(X509 *cert, const char *oid, uint8_t **data_
 
 done:
 	return result;
-}
-
-static tls_wrapper_err_t verify_evidence_buffer(
-	tls_wrapper_ctx_t *tls_ctx, uint8_t *evidence_buffer /* optional, for nullverifier */,
-	size_t evidence_buffer_size, uint8_t *endorsements_buffer /* optional */,
-	size_t endorsements_buffer_size, uint8_t *pubkey_hash /* Assume it is sha256 hash */)
-{
-	tls_wrapper_err_t ret;
-
-	attestation_evidence_t evidence;
-
-	uint8_t *claims_buffer = NULL;
-	size_t claims_buffer_size = 0;
-	claim_t *custom_claims = NULL;
-	size_t custom_claims_length = 0;
-
-	RTLS_DEBUG(
-		"tls_ctx %p, evidence_buffer %p, evidence_buffer_size %zu, endorsements_buffer %p, endorsements_buffer_size %zu, pubkey_hash %p\n",
-		tls_ctx, evidence_buffer, evidence_buffer_size, endorsements_buffer,
-		endorsements_buffer_size, pubkey_hash);
-
-	if (!tls_ctx || !tls_ctx->rtls_handle || !tls_ctx->rtls_handle->verifier ||
-	    !tls_ctx->rtls_handle->verifier->opts ||
-	    !tls_ctx->rtls_handle->verifier->opts->verify_evidence || !pubkey_hash)
-		return -TLS_WRAPPER_ERR_INVALID;
-
-	/* Get evidence struct and claims_buffer from evidence_buffer. */
-	if (!evidence_buffer) {
-		/* evidence_buffer is empty, which means that the other party is using a non-dice certificate or is using a nullattester */
-		RTLS_WARN("there is no evidence buffer in peer's certificate.\n");
-		memset(&evidence, 0, sizeof(attestation_evidence_t));
-	} else {
-		enclave_verifier_err_t d_ret = dice_parse_evidence_buffer_with_tag(
-			evidence_buffer, evidence_buffer_size, &evidence, &claims_buffer,
-			&claims_buffer_size);
-		if (d_ret != ENCLAVE_VERIFIER_ERR_NONE) {
-			ret = -TLS_WRAPPER_ERR_INVALID;
-			RTLS_ERR("dice failed to parse evidence from evidence buffer: %#x\n",
-				 d_ret);
-			goto err;
-		}
-	}
-	RTLS_DEBUG("evidence->type: '%s'\n", evidence.type);
-
-	/* Get endorsements (optional) from endorsements_buffer */
-	attestation_endorsement_t endorsements;
-	memset(&endorsements, 0, sizeof(attestation_endorsement_t));
-
-	bool has_endorsements = endorsements_buffer && endorsements_buffer_size;
-	RTLS_DEBUG("has_endorsements: %s\n", has_endorsements ? "true" : "false");
-	if (has_endorsements) {
-		enclave_verifier_err_t d_ret = dice_parse_endorsements_buffer_with_tag(
-			evidence.type, endorsements_buffer, endorsements_buffer_size,
-			&endorsements);
-		if (d_ret != ENCLAVE_VERIFIER_ERR_NONE) {
-			ret = -TLS_WRAPPER_ERR_INVALID;
-			RTLS_ERR(
-				"dice failed to parse endorsements from endorsements buffer: %#x\n",
-				d_ret);
-			goto err;
-		}
-	}
-
-	/* Verify evidence and userdata. 
-	 * The hash value in evidence user-data field shall be the SHA256 hash of the `claims-buffer` byte string.
-	 */
-	RTLS_DEBUG("check evidence userdata field with sha256 of claims_buffer\n");
-	uint8_t hash[SHA256_DIGEST_LENGTH];
-	size_t hash_len = SHA256_DIGEST_LENGTH;
-	if (!claims_buffer) {
-		/* Note that the custom_buffer will not be null if the evidence_buffer is successfully parsed.
-		 * So this branch indicates the case where there is no evidence_buffer in the certificate, i.e. a peer that does not support the evidence extension, or a peer that uses nullattester.
-		 */
-		RTLS_WARN(
-			"set hash value to 0, since there is no evidence buffer in peer's certificate.\n");
-		memset(hash, 0, hash_len);
-	} else {
-		SHA256(claims_buffer, claims_buffer_size, hash);
-		if (hash_len >= 16)
-			RTLS_DEBUG(
-				"sha256 of claims_buffer [%zu] %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x...\n",
-				hash_len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
-				hash[6], hash[7], hash[8], hash[9], hash[10], hash[11], hash[12],
-				hash[13], hash[14], hash[15]);
-	}
-	ret = tls_wrapper_verify_certificate_extension(tls_ctx, &evidence, hash, hash_len,
-						       has_endorsements ? &endorsements : NULL);
-	if (has_endorsements)
-		free_endorsements(evidence.type, &endorsements);
-	if (ret != TLS_WRAPPER_ERR_NONE) {
-		RTLS_ERR("failed to verify evidence: %#x\n", ret);
-		goto err;
-	}
-
-	/* Parse and verify claims buffer */
-	if (claims_buffer) {
-		enclave_verifier_err_t d_ret = dice_parse_and_verify_claims_buffer(
-			pubkey_hash, claims_buffer, claims_buffer_size, &custom_claims,
-			&custom_claims_length);
-		free(claims_buffer);
-		claims_buffer = NULL;
-		if (d_ret != ENCLAVE_VERIFIER_ERR_NONE) {
-			ret = -TLS_WRAPPER_ERR_INVALID;
-			RTLS_ERR("dice failed to parse claims from claims_buffer: %#x\n", d_ret);
-			goto err;
-		}
-
-		RTLS_DEBUG("custom_claims %p, claims_size %zu\n", custom_claims,
-			   custom_claims_length);
-		for (size_t i = 0; i < custom_claims_length; ++i) {
-			RTLS_DEBUG("custom_claims[%zu] -> name: '%s' value_size: %zu\n", i,
-				   custom_claims[i].name, custom_claims[i].value_size,
-				   (int)custom_claims[i].value_size);
-		}
-	}
-
-	/* Verify evidence struct via user_callback */
-	rtls_evidence_t ev;
-	memset(&ev, 0, sizeof(ev));
-	ev.custom_claims = custom_claims;
-	ev.custom_claims_length = custom_claims_length;
-	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
-		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
-
-		ev.sgx.mr_enclave = (uint8_t *)quote3->report_body.mr_enclave.m;
-		ev.sgx.mr_signer = quote3->report_body.mr_signer.m;
-		ev.sgx.product_id = quote3->report_body.isv_prod_id;
-		ev.sgx.security_version = quote3->report_body.isv_svn;
-		ev.sgx.attributes = (uint8_t *)&(quote3->report_body.attributes);
-		ev.type = SGX_ECDSA;
-		ev.quote = (char *)quote3;
-		ev.quote_size = sizeof(sgx_quote3_t);
-	}
-#if 0
-	else if (!strncmp(evidence.type, "tdx_ecdsa", sizeof(evidence.type))) {
-		sgx_quote4_t *quote4 = (sgx_quote4_t *)evidence.tdx.quote;
-		ev.tdx.mrseam = (uint8_t *)&(quote4->report_body.mr_seam);
-		ev.tdx.mrseamsigner = (uint8_t *)&(quote4->report_body.mrsigner_seam);
-		ev.tdx.tcb_svns = (uint8_t *)&(quote4->report_body.tee_tcb_svn);
-		ev.tdx.mrtd = (uint8_t *)&(quote4->report_body.mr_td);
-		ev.tdx.rtmr = (char *)quote4->report_body.rt_mr;
-		ev.type = TDX_ECDSA;
-		ev.quote = (char *)quote4;
-		ev.tdx.tdel_info = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ]);
-		ev.tdx.tdel_info_sz = evidence.tdx.tdel_info_len;
-		ev.tdx.tdel_data = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]);
-		ev.tdx.tdel_data_sz = evidence.tdx.tdel_data_len;
-	}
-#endif
-	else if (!strncmp(evidence.type, "csv", sizeof(evidence.type))) {
-		csv_evidence *c_evi = (csv_evidence *)evidence.csv.report;
-		csv_attestation_report *report = &c_evi->attestation_report;
-		int i = 0;
-		int cnt = (offsetof(csv_attestation_report, anonce) -
-			   offsetof(csv_attestation_report, user_pubkey_digest)) /
-			  sizeof(uint32_t);
-
-		for (i = 0; i < cnt; i++)
-			((uint32_t *)report)[i] ^= report->anonce;
-
-		ev.csv.vm_id = (uint8_t *)&(report->vm_id);
-		ev.csv.vm_id_sz = sizeof(report->vm_id);
-		ev.csv.vm_version = (uint8_t *)&(report->vm_version);
-		ev.csv.vm_version_sz = sizeof(report->vm_version);
-		ev.csv.measure = (uint8_t *)&(report->measure);
-		ev.csv.measure_sz = sizeof(report->measure);
-		ev.csv.policy = (uint8_t *)&(report->policy);
-		ev.csv.policy_sz = sizeof(report->policy);
-		ev.type = CSV;
-		ev.quote = (char *)report;
-		ev.quote_size = sizeof(*report);
-	}
-
-	if (tls_ctx->rtls_handle->user_callback) {
-		int rc = tls_ctx->rtls_handle->user_callback(&ev);
-		if (!rc) {
-			RTLS_ERR("failed to verify user callback %d\n", rc);
-			ret = -TLS_WRAPPER_ERR_INVALID;
-			goto err;
-		}
-	}
-
-	ret = TLS_WRAPPER_ERR_NONE;
-err:
-	if (claims_buffer)
-		free(claims_buffer);
-	if (custom_claims)
-		free_claims_list(custom_claims, custom_claims_length);
-
-	return ret;
 }
 
 int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
@@ -432,13 +204,19 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 		return 0;
 	}
 
-	const int hash_size = SHA256_HASH_SIZE;
-	uint8_t hash[hash_size];
-	crypto_wrapper_err_t err = calc_pubkey_sha256(cert, hash);
-	if (err != CRYPTO_WRAPPER_ERR_NONE)
-		return 0;
+	/* Get pubkey in SubjectPublicKeyInfo format from cert */
+	EVP_PKEY *pkey = X509_get_pubkey(cert);
+	if (!pkey) {
+		RTLS_ERR("Unable to decode the public key from certificate\n");
+		return TLS_WRAPPER_ERR_INVALID;
+	}
+	int pubkey_buffer_size = i2d_PUBKEY(pkey, NULL);
+	unsigned char pubkey_buffer[pubkey_buffer_size];
+	unsigned char *p = pubkey_buffer;
+	i2d_PUBKEY(pkey, &p);
+	EVP_PKEY_free(pkey);
 
-	/* Extract the Rats TLS certificate extension_buffer and endorsements_buffer(optional) from the TLS
+	/* Extract the RATS-TLS certificate evidence_buffer(optional for nullverifier) and endorsements_buffer(optional) from the TLS
 	 * certificate extension.
 	 */
 	uint8_t *evidence_buffer = NULL;
@@ -462,11 +240,11 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 		return rc;
 	}
 
-	tls_wrapper_err_t t_err = verify_evidence_buffer(tls_ctx, evidence_buffer,
-							 evidence_buffer_size, endorsements_buffer,
-							 endorsements_buffer_size, hash);
+	tls_wrapper_err_t t_err = tls_wrapper_verify_certificate_extension(
+		tls_ctx, pubkey_buffer, pubkey_buffer_size, evidence_buffer, evidence_buffer_size,
+		endorsements_buffer, endorsements_buffer_size);
 	if (t_err != TLS_WRAPPER_ERR_NONE) {
-		RTLS_ERR("failed to verify certificate extension %#x\n", err);
+		RTLS_ERR("failed to verify certificate extension %#x\n", t_err);
 		return 0;
 	}
 

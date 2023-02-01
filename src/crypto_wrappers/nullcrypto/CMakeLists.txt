@@ -15,7 +15,7 @@ set(SOURCES cleanup.c
             gen_cert.c
             gen_privkey.c
             gen_pubkey_hash.c
-            gen_sha256.c
+            gen_hash.c
             init.c
             main.c
             pre_init.c

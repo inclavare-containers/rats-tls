@@ -54,8 +54,11 @@ struct tls_wrapper_ctx {
 };
 
 extern tls_wrapper_err_t tls_wrapper_register(const tls_wrapper_opts_t *);
-extern tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
-	tls_wrapper_ctx_t *tls_ctx, attestation_evidence_t *evidence, uint8_t *hash,
-	uint32_t hash_len, attestation_endorsement_t *endorsements /* Optional */);
+
+extern tls_wrapper_err_t
+tls_wrapper_verify_certificate_extension(tls_wrapper_ctx_t *tls_ctx, const uint8_t *pubkey_buffer,
+					 size_t pubkey_buffer_size, uint8_t *evidence_buffer,
+					 size_t evidence_buffer_size, uint8_t *endorsements_buffer,
+					 size_t endorsements_buffer_size);
 
 #endif

@@ -8,6 +8,7 @@
 
 #include <rats-tls/log.h>
 #include <rats-tls/tls_wrapper.h>
+#include <rats-tls/hash.h>
 
 tls_wrapper_err_t nulltls_negotiate(tls_wrapper_ctx_t *ctx, int fd)
 {
@@ -16,15 +17,13 @@ tls_wrapper_err_t nulltls_negotiate(tls_wrapper_ctx_t *ctx, int fd)
 	if (!(ctx->conf_flags & RATS_TLS_CONF_FLAGS_SERVER) ||
 	    ((ctx->conf_flags & RATS_TLS_CONF_FLAGS_MUTUAL) &&
 	     (ctx->conf_flags & RATS_TLS_CONF_FLAGS_SERVER))) {
-		tls_wrapper_err_t err;
-		uint8_t hash[SHA256_HASH_SIZE];
-		attestation_evidence_t evidence;
+		RTLS_INFO(
+			"there is no evidence in tls_wrapper_nulltls, so we just use a dummy evidence here");
 
-		/* There is no evidence in tls_wrapper_nulltls */
-		snprintf(evidence.type, sizeof(evidence.type), "%s", "nulltls");
-
-		err = tls_wrapper_verify_certificate_extension(ctx, &evidence, hash,
-							       SHA256_HASH_SIZE, NULL);
+		size_t pubkey_buffer_size = 0;
+		uint8_t pubkey_buffer[pubkey_buffer_size];
+		tls_wrapper_err_t err = tls_wrapper_verify_certificate_extension(
+			ctx, pubkey_buffer, pubkey_buffer_size, NULL, 0, NULL, 0);
 		if (err != TLS_WRAPPER_ERR_NONE) {
 			RTLS_ERR("ERROR: failed to verify certificate extension\n");
 			return err;
