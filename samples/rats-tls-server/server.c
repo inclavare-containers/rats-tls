@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <rats-tls/api.h>
 #include <rats-tls/log.h>
 #include <rats-tls/claim.h>
@@ -167,6 +168,31 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 
 	int reuse = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&reuse, sizeof(int)) < 0) {
+		RTLS_ERR("Failed to call setsockopt()");
+		return -1;
+	}
+
+	/* Set keepalive options */
+	int flag = 1;
+	int tcp_keepalive_time = 30;
+	int tcp_keepalive_intvl = 10;
+	int tcp_keepalive_probes = 5;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(flag)) < 0) {
+		RTLS_ERR("Failed to call setsockopt()");
+		return -1;
+	}
+	if (setsockopt(sockfd, SOL_TCP, TCP_KEEPIDLE, &tcp_keepalive_time,
+		       sizeof(tcp_keepalive_time)) < 0) {
+		RTLS_ERR("Failed to call setsockopt()");
+		return -1;
+	}
+	if (setsockopt(sockfd, SOL_TCP, TCP_KEEPINTVL, &tcp_keepalive_intvl,
+		       sizeof(tcp_keepalive_intvl)) < 0) {
+		RTLS_ERR("Failed to call setsockopt()");
+		return -1;
+	}
+	if (setsockopt(sockfd, SOL_TCP, TCP_KEEPCNT, &tcp_keepalive_probes,
+		       sizeof(tcp_keepalive_probes)) < 0) {
 		RTLS_ERR("Failed to call setsockopt()");
 		return -1;
 	}

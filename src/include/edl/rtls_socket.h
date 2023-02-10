@@ -8,6 +8,11 @@
 #define RTLS_SOCK_STREAM        1
 #define RTLS_SOL_SOCKET         1
 #define RTLS_SO_REUSEADDR       2
+#define RTLS_SO_KEEPALIVE       9
+#define RTLS_SOL_TCP            6
+#define RTLS_TCP_KEEPIDLE       4
+#define RTLS_TCP_KEEPINTVL      5
+#define RTLS_TCP_KEEPCNT        6
 // clang-format on
 
 /* Define in_addr */
