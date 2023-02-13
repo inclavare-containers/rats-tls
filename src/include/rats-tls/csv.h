@@ -7,6 +7,9 @@
 #ifndef _ENCLAVE_CSV_H_
 #define _ENCLAVE_CSV_H_
 
+/* Store the CSV certs downloaded from HYGON HDS server */
+#define CSV_HSK_CEK_DEFAULT_DIR "/opt/csv/hsk_cek/"
+
 #define HYGON_KDS_SERVER_SITE	    "https://cert.hygon.cn/hsk_cek?snumber="
 #define HYGON_HSK_CEK_CERT_FILENAME "hsk_cek.cert"
 
