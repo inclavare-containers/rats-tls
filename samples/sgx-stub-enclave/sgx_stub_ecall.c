@@ -54,6 +54,39 @@ int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_typ
 		return -1;
 	}
 
+	/* Set keepalive options */
+	int flag = 1;
+	int tcp_keepalive_time = 30;
+	int tcp_keepalive_intvl = 10;
+	int tcp_keepalive_probes = 5;
+	sgx_status = ocall_setsockopt(&ocall_ret, sockfd, RTLS_SOL_SOCKET, RTLS_SO_KEEPALIVE, &flag,
+				      sizeof(flag));
+	if (sgx_status != SGX_SUCCESS || ocall_ret < 0) {
+		RTLS_ERR("Failed to call setsockopt() %#x %d\n", sgx_status, ocall_ret);
+		return -1;
+	}
+
+	sgx_status = ocall_setsockopt(&ocall_ret, sockfd, RTLS_SOL_TCP, RTLS_TCP_KEEPIDLE,
+				      &tcp_keepalive_time, sizeof(tcp_keepalive_time));
+	if (sgx_status != SGX_SUCCESS || ocall_ret < 0) {
+		RTLS_ERR("Failed to call setsockopt() %#x %d\n", sgx_status, ocall_ret);
+		return -1;
+	}
+
+	sgx_status = ocall_setsockopt(&ocall_ret, sockfd, RTLS_SOL_TCP, RTLS_TCP_KEEPINTVL,
+				      &tcp_keepalive_intvl, sizeof(tcp_keepalive_intvl));
+	if (sgx_status != SGX_SUCCESS || ocall_ret < 0) {
+		RTLS_ERR("Failed to call setsockopt() %#x %d\n", sgx_status, ocall_ret);
+		return -1;
+	}
+
+	sgx_status = ocall_setsockopt(&ocall_ret, sockfd, RTLS_SOL_TCP, RTLS_TCP_KEEPCNT,
+				      &tcp_keepalive_probes, sizeof(tcp_keepalive_probes));
+	if (sgx_status != SGX_SUCCESS || ocall_ret < 0) {
+		RTLS_ERR("Failed to call setsockopt() %#x %d\n", sgx_status, ocall_ret);
+		return -1;
+	}
+
 	struct rtls_sockaddr_in s_addr;
 	memset(&s_addr, 0, sizeof(s_addr));
 	s_addr.sin_family = RTLS_AF_INET;
