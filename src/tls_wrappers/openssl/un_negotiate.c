@@ -178,6 +178,7 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 		if (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
 			return SSL_SUCCESS;
 
+#if 0
 		/* According to the dice standard, the DiceTaggedEvidence extension should be set to critical=true.
 		 * However, there is no way via the openssl api to know directly which extension is causing
 		 * X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION, so we have to tolerate all this cases here.
@@ -188,6 +189,7 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 		 */
 		if (err == X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION)
 			return SSL_SUCCESS;
+#endif
 
 		/*
 		 * A typical and unrecoverable error code is
