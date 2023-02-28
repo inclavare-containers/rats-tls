@@ -40,3 +40,9 @@ jobs:
           source /root/.bashrc && cmake -DRATS_TLS_BUILD_MODE="sgx" -DBUILD_SAMPLES=on -H. -Bbuild && make -C build install && make -C build clean && rm -rf build
         env:
           HOME: /root
+      
+      - name: Compile "rats-tls" tdx mode
+        run:
+          source /root/.bashrc && cmake -DRATS_TLS_BUILD_MODE="tdx" -DBUILD_SAMPLES=on -H. -Bbuild && make -C build install && make -C build clean && rm -rf build
+        env:
+          HOME: /root
