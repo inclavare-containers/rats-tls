@@ -35,3 +35,6 @@ RUN [ ! -f sgx_rpm_local_repo.tgz ] && \
     dnf makecache && rm -rf sgx_rpm_local_repo.tgz
 
 RUN dnf install --nogpgcheck -y libsgx-headers libsgx-dcap-quote-verify-devel libsgx-dcap-ql-devel 
+
+# install tdx
+RUN dnf install --nogpgcheck -y libtdx-attest-devel
