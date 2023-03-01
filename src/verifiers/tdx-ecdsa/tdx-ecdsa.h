@@ -8,6 +8,7 @@
 #define _TDX_ECDSA_H
 
 #include <rats-tls/api.h>
+#include <rats-tls/hash.h>
 
 #define TDX_NUM_RTMRS 4
 
