@@ -42,7 +42,6 @@ jobs:
           HOME: /root
       
       - name: Compile "rats-tls" tdx mode
-        if: ${{ !contains(matrix.tag, 'anolis8.6') }}
         run:
           source /root/.bashrc && cmake -DRATS_TLS_BUILD_MODE="tdx" -DBUILD_SAMPLES=on -H. -Bbuild && make -C build install && make -C build clean && rm -rf build
         env:
