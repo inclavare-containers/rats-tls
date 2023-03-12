@@ -17,6 +17,7 @@
 #ifdef SGX
 #include "rtls_t.h"
 #endif
+#include <openssl/opensslv.h>
 // clang-format on
 
 /* The global configurations present by /opt/rats-tls/config.toml */
@@ -54,7 +55,12 @@ void __attribute__((constructor)) librats_tls_init(void)
 	global_core_context.config.api_version = RATS_TLS_API_VERSION_DEFAULT;
 	// clang-format on
 	global_core_context.config.log_level = global_log_level;
-	global_core_context.config.cert_algo = RATS_TLS_CERT_ALGO_DEFAULT;
+	/* FIXME: it is intended to use the certificate with different algorithm */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	global_core_context.config.cert_algo = RATS_TLS_CERT_ALGO_RSA_3072_SHA256;
+#else
+	global_core_context.config.cert_algo = RATS_TLS_CERT_ALGO_ECC_256_SHA256;
+#endif
 
 	/* TODO: load and parse the global configuration file */
 

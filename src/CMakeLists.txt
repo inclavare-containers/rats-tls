@@ -8,23 +8,26 @@ set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
 if(SGX)
     list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include/edl
                              ${CMAKE_BINARY_DIR}/src/sgx/trust
-                             ${CMAKE_BINARY_DIR}/../src/external/sgx-ssl/intel-sgx-ssl/src/intel-sgx-ssl/Linux/package/include
                              )
 endif()
+
+# Add third party and instance directory
+add_subdirectory(attesters)
+add_subdirectory(verifiers)
+if(SGX)
+    add_subdirectory(sgx)
+endif()
+
+# Add third party library required by crypto_wrappers and tls_wrappers
+if(SGX)
+    list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/sgx-ssl/intel-sgx-ssl/src/intel-sgx-ssl/Linux/package/include)
+endif()
+add_subdirectory(crypto_wrappers)
+add_subdirectory(tls_wrappers)
 
 list(APPEND INCLUDE_DIRS ${LIBCBOR_INC_PATH})
 
 include_directories(${INCLUDE_DIRS})
-
-# Add third party and instance directory
-add_subdirectory(external)
-add_subdirectory(crypto_wrappers)
-add_subdirectory(attesters)
-add_subdirectory(verifiers)
-add_subdirectory(tls_wrappers)
-if(SGX)
-    add_subdirectory(sgx)
-endif()
 
 # Set source file
 set(SOURCES

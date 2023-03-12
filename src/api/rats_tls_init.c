@@ -14,6 +14,7 @@
 #include "internal/tls_wrapper.h"
 #include "internal/attester.h"
 #include "internal/verifier.h"
+#include <openssl/opensslv.h>
 
 rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handle)
 {
@@ -40,6 +41,15 @@ rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handl
 		ctx->config.log_level = global_core_context.config.log_level;
 		RTLS_WARN("log level reset to global value %d\n",
 			  global_core_context.config.log_level);
+	}
+
+	/* FIXME: it is intended to use the certificate with different algorithm */
+	if (ctx->config.cert_algo == RATS_TLS_CERT_ALGO_DEFAULT) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		ctx->config.cert_algo = RATS_TLS_CERT_ALGO_RSA_3072_SHA256;
+#else
+		ctx->config.cert_algo = RATS_TLS_CERT_ALGO_ECC_256_SHA256;
+#endif
 	}
 
 	if (ctx->config.cert_algo < 0 || ctx->config.cert_algo >= RATS_TLS_CERT_ALGO_MAX) {

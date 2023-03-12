@@ -33,12 +33,12 @@ extern void libverifier_sgx_la_init(void);
 extern void libtls_wrapper_nulltls_init(void);
 extern void libtls_wrapper_openssl_init(void);
 #endif
-//clang-format on
+// clang-format on
 
 #ifdef SGX
 void rtls_exit(void)
 {
-        ocall_exit();
+	ocall_exit();
 }
 
 rats_tls_log_level_t rtls_loglevel_getenv(const char *name)
@@ -47,90 +47,90 @@ rats_tls_log_level_t rtls_loglevel_getenv(const char *name)
 	size_t log_level_len = 32;
 
 	log_level_str = calloc(1, log_level_len);
-        if (!log_level_str) {
-                RTLS_ERR("failed to calloc log level string\n");
-                return -1;
-        }
+	if (!log_level_str) {
+		RTLS_ERR("failed to calloc log level string\n");
+		return -1;
+	}
 
 	ocall_getenv(name, log_level_str, log_level_len);
 	if (log_level_str) {
 		if (!strcmp(log_level_str, "debug") || !strcmp(log_level_str, "DEBUG")) {
-                        free(log_level_str);
+			free(log_level_str);
 			return RATS_TLS_LOG_LEVEL_DEBUG;
-                } else if (!strcmp(log_level_str, "info") || !strcmp(log_level_str, "INFO")) {
-                        free(log_level_str);
+		} else if (!strcmp(log_level_str, "info") || !strcmp(log_level_str, "INFO")) {
+			free(log_level_str);
 			return RATS_TLS_LOG_LEVEL_INFO;
-                } else if (!strcmp(log_level_str, "warn") || !strcmp(log_level_str, "WARN")) {
-                        free(log_level_str);
+		} else if (!strcmp(log_level_str, "warn") || !strcmp(log_level_str, "WARN")) {
+			free(log_level_str);
 			return RATS_TLS_LOG_LEVEL_WARN;
-                } else if (!strcmp(log_level_str, "error") || !strcmp(log_level_str, "ERROR")) {
-                        free(log_level_str);
+		} else if (!strcmp(log_level_str, "error") || !strcmp(log_level_str, "ERROR")) {
+			free(log_level_str);
 			return RATS_TLS_LOG_LEVEL_ERROR;
-                } else if (!strcmp(log_level_str, "fatal") || !strcmp(log_level_str, "FATAL")) {
-                        free(log_level_str);
+		} else if (!strcmp(log_level_str, "fatal") || !strcmp(log_level_str, "FATAL")) {
+			free(log_level_str);
 			return RATS_TLS_LOG_LEVEL_FATAL;
-                } else if (!strcmp(log_level_str, "off") || !strcmp(log_level_str, "OFF")) {
-                        free(log_level_str);
+		} else if (!strcmp(log_level_str, "off") || !strcmp(log_level_str, "OFF")) {
+			free(log_level_str);
 			return RATS_TLS_LOG_LEVEL_NONE;
-                }
+		}
 	}
 
 	return RATS_TLS_LOG_LEVEL_DEFAULT;
 }
 
 rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) const char *realpath,
-				     __attribute__((unused)) void **handle)
+				  __attribute__((unused)) void **handle)
 {
-        rats_tls_err_t err;
+	rats_tls_err_t err;
 
 	if (!strcmp(name, "nullcrypto")) {
 		libcrypto_wrapper_nullcrypto_init();
-                err = rtls_enclave_crypto_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
-        } else if (!strcmp(name, "nullattester")) {
+		err = rtls_enclave_crypto_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
+	} else if (!strcmp(name, "nullattester")) {
 		libattester_null_init();
-                err = rtls_enclave_attester_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
-        } else if (!strcmp(name, "nullverifier")) {
+		err = rtls_enclave_attester_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
+	} else if (!strcmp(name, "nullverifier")) {
 		libverifier_null_init();
-                err = rtls_enclave_verifier_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
-        } else if (!strcmp(name, "sgx_ecdsa")) {
+		err = rtls_enclave_verifier_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
+	} else if (!strcmp(name, "sgx_ecdsa")) {
 		libattester_sgx_ecdsa_init();
-                err = rtls_enclave_attester_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
+		err = rtls_enclave_attester_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
 	} else if (!strcmp(name, "sgx_ecdsa_qve")) {
 		libverifier_sgx_ecdsa_qve_init();
-                err = rtls_enclave_verifier_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
-        } else if (!strcmp(name, "sgx_la")) {
+		err = rtls_enclave_verifier_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
+	} else if (!strcmp(name, "sgx_la")) {
 		libattester_sgx_la_init();
 		libverifier_sgx_la_init();
-                 err = rtls_enclave_attester_post_init(name, NULL);
-                 if (err != RATS_TLS_ERR_NONE)
-                         return err;
-                 err = rtls_enclave_verifier_post_init(name, NULL);
-                 if (err != RATS_TLS_ERR_NONE)
-                         return err;
+		err = rtls_enclave_attester_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
+		err = rtls_enclave_verifier_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
 	} else if (!strcmp(name, "nulltls")) {
 		libtls_wrapper_nulltls_init();
-                err = rtls_rats_tls_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
-        } else if (!strcmp(name, "openssl")) {
+		err = rtls_rats_tls_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
+	} else if (!strcmp(name, "openssl")) {
 		libtls_wrapper_openssl_init();
 		libcrypto_wrapper_openssl_init();
-                err = rtls_rats_tls_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
-                err = rtls_enclave_crypto_post_init(name, NULL);
-                if (err != RATS_TLS_ERR_NONE)
-                        return err;
+		err = rtls_rats_tls_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
+		err = rtls_enclave_crypto_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
 	} else
 		return RATS_TLS_ERR_NO_NAME;
 
@@ -176,10 +176,10 @@ int rtls_readdir(uint64_t dirp, rtls_dirent **ptr)
 	int ret = 0;
 
 	*ptr = (rtls_dirent *)calloc(1, sizeof(rtls_dirent));
-        if (!ptr) {
-                RTLS_ERR("failed to calloc memory in rtls_readdir\n");
-                return -1;
-        }
+	if (!ptr) {
+		RTLS_ERR("failed to calloc memory in rtls_readdir\n");
+		return -1;
+	}
 	ocall_readdir(&ret, dirp, *ptr);
 
 	return ret;
@@ -195,7 +195,7 @@ int rtls_closedir(uint64_t dir)
 #else
 void rtls_exit(void)
 {
-        exit(EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }
 
 rats_tls_log_level_t rtls_loglevel_getenv(const char *name)
@@ -220,7 +220,7 @@ rats_tls_log_level_t rtls_loglevel_getenv(const char *name)
 }
 
 rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) const char *realpath,
-				     __attribute__((unused)) void **handle)
+				  __attribute__((unused)) void **handle)
 {
 	*handle = dlopen(realpath, RTLD_LAZY);
 	if (*handle == NULL) {

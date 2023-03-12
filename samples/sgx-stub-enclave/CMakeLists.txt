@@ -5,7 +5,7 @@ if(BUILD_SAMPLES)
     set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include
                      ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include/rats-tls
                      ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include/edl
-                     ${CMAKE_BINARY_DIR}/../src/external/sgx-ssl/intel-sgx-ssl/src/intel-sgx-ssl/Linux/package/include
+                     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/external/sgx-ssl/intel-sgx-ssl/src/intel-sgx-ssl/Linux/package/include
                      )
 
     set(LIBRARY_DIRS ${INTEL_SGXSSL_LIB_PATH}
@@ -71,6 +71,7 @@ set(DEPEND_TRUSTED_LIBS crypto_wrapper_nullcrypto
 
 add_enclave_library(sgx_stub_enclave SRCS ${E_SRCS} EDL ${EDLS} TRUSTED_LIBS ${DEPEND_TRUSTED_LIBS} EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS} LDSCRIPT ${LDS})
 enclave_sign(sgx_stub_enclave KEY sgx_stub_enclave.pem CONFIG sgx_stub_enclave.xml)
+add_dependencies(sgx_stub_enclave rats_tls)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sgx_stub_enclave.signed.so
         DESTINATION /usr/share/rats-tls/samples)

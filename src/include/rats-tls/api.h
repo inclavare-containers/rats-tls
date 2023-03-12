@@ -12,7 +12,6 @@
 #include <stddef.h>
 #include <rats-tls/err.h>
 #include <rats-tls/claim.h>
-#include <openssl/opensslv.h>
 
 #define TLS_TYPE_NAME_SIZE		32
 #define ENCLAVE_ATTESTER_TYPE_NAME_SIZE 32
@@ -37,12 +36,7 @@ typedef enum {
 	RATS_TLS_CERT_ALGO_RSA_3072_SHA256,
 	RATS_TLS_CERT_ALGO_ECC_256_SHA256,
 	RATS_TLS_CERT_ALGO_MAX,
-/* FIXME: it is intended to use the certificate with different algorithm */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-	RATS_TLS_CERT_ALGO_DEFAULT = RATS_TLS_CERT_ALGO_RSA_3072_SHA256
-#else
-	RATS_TLS_CERT_ALGO_DEFAULT = RATS_TLS_CERT_ALGO_ECC_256_SHA256
-#endif
+	RATS_TLS_CERT_ALGO_DEFAULT,
 } rats_tls_cert_algo_t;
 
 typedef struct {

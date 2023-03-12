@@ -34,6 +34,7 @@ set(SOURCES cleanup.c
 # Generate library
 if(SGX)
     add_trusted_library(${PROJECT_NAME} SRCS ${SOURCES})
+    add_dependencies(${PROJECT_NAME} rtls_edl_t)
 else()
     add_library(${PROJECT_NAME} SHARED ${SOURCES})
     target_link_libraries(${PROJECT_NAME} ${EXTRA_LINK_LIBRARY} ${RATS_TLS_LDFLAGS} ${RTLS_LIB})

@@ -8,11 +8,6 @@
 #include <rats-tls/log.h>
 #include <internal/core.h>
 #include <rats-tls/tls_wrapper.h>
-// clang-format off
-#ifdef SGX
-#include "rtls_t.h"
-#endif
-// clang-format on
 
 tls_wrapper_err_t nulltls_receive(tls_wrapper_ctx_t *ctx, void *buf, size_t *buf_size)
 {

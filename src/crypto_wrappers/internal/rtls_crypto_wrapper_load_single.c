@@ -18,7 +18,7 @@
 #else
 #define PATTERN_SUFFIX ".so"
 #endif
-//clang-format on
+// clang-format on
 
 rats_tls_err_t rtls_enclave_crypto_post_init(const char *name, void *handle)
 {
@@ -56,7 +56,7 @@ rats_tls_err_t rtls_enclave_crypto_post_init(const char *name, void *handle)
 
 	crypto_wrappers_ctx[crypto_wrappers_nums++] = crypto_ctx;
 
-        return RATS_TLS_ERR_NONE;
+	return RATS_TLS_ERR_NONE;
 }
 
 rats_tls_err_t rtls_crypto_wrapper_load_single(const char *fname)
@@ -87,7 +87,7 @@ rats_tls_err_t rtls_crypto_wrapper_load_single(const char *fname)
 	if (err != RATS_TLS_ERR_NONE)
 		return err;
 
-        err = rtls_enclave_crypto_post_init(name, handle);
+	err = rtls_enclave_crypto_post_init(name, handle);
 	if (err != RATS_TLS_ERR_NONE)
 		return err;
 
