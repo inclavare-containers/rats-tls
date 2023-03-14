@@ -86,6 +86,7 @@ if(SGX)
                             attester_sgx_la
                             verifier_nullverifier
                             verifier_sgx_ecdsa_qve
+                            verifier_tdx_ecdsa
                             verifier_sgx_la
                             libcbor
                             )

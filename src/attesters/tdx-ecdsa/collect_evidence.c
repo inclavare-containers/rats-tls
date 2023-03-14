@@ -28,8 +28,9 @@
 static int tdx_get_report(const tdx_report_data_t *report_data, tdx_report_t *tdx_report)
 {
 	/* Get report by tdcall */
-	if (tdx_att_get_report(report_data, tdx_report) != TDX_ATTEST_SUCCESS) {
-		RTLS_ERR("failed to ioctl get tdx report data.\n");
+	tdx_attest_error_t attest_ret = tdx_att_get_report(report_data, tdx_report);
+	if (attest_ret != TDX_ATTEST_SUCCESS) {
+		RTLS_ERR("failed to ioctl get tdx report data: %#x\n", attest_ret);
 		return -1;
 	}
 

@@ -17,6 +17,7 @@ if(BUILD_SAMPLES)
                      ${CMAKE_BINARY_DIR}/src/tls_wrappers/openssl
                      ${CMAKE_BINARY_DIR}/src/verifiers/nullverifier
                      ${CMAKE_BINARY_DIR}/src/verifiers/sgx-ecdsa-qve
+                     ${CMAKE_BINARY_DIR}/src/verifiers/tdx-ecdsa
                      ${CMAKE_BINARY_DIR}/src/verifiers/sgx-la
                      ${CMAKE_BINARY_DIR}/src/attesters/nullattester
                      ${CMAKE_BINARY_DIR}/src/attesters/sgx-ecdsa
@@ -65,6 +66,7 @@ set(DEPEND_TRUSTED_LIBS crypto_wrapper_nullcrypto
                         verifier_nullverifier
                         verifier_sgx_la
                         verifier_sgx_ecdsa_qve
+                        verifier_tdx_ecdsa
                         rats_tls
                         cbor
                         )
