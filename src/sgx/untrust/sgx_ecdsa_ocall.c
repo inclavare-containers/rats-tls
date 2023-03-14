@@ -44,11 +44,15 @@ enclave_attester_err_t ocall_qe_get_quote(sgx_report_t *report, uint32_t quote_s
 	return ENCLAVE_ATTESTER_ERR_NONE;
 }
 
-enclave_verifier_err_t ocall_sgx_qv_get_quote_supplemental_data_size(uint32_t *p_data_size)
+enclave_verifier_err_t ocall_tee_get_supplemental_data_version_and_size(
+	uint8_t *p_quote /* IN */, uint32_t quote_size /* IN */, uint32_t *p_version /* OUT */,
+	uint32_t *p_data_size /* OUT */)
 {
-	quote3_error_t dcap_ret = sgx_qv_get_quote_supplemental_data_size(p_data_size);
+	quote3_error_t dcap_ret = tee_get_supplemental_data_version_and_size(
+		p_quote, quote_size, p_version, p_data_size);
 	if (dcap_ret != SGX_QL_SUCCESS) {
-		RTLS_ERR("failed to get quote supplemental data size by sgx qv: %04x\n", dcap_ret);
+		RTLS_ERR("failed to get quote supplemental data version and size by sgx qv: %04x\n",
+			 dcap_ret);
 		return SGX_ECDSA_VERIFIER_ERR_CODE((int)dcap_ret);
 	}
 	return ENCLAVE_VERIFIER_ERR_NONE;
@@ -65,18 +69,14 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(
 	uint32_t collateral_qe_identity_issuer_chain_size, char *collateral_qe_identity,
 	uint32_t collateral_qe_identity_size, time_t expiration_check_date,
 	uint32_t *p_collateral_expiration_status, sgx_ql_qv_result_t *p_quote_verification_result,
-	sgx_ql_qe_report_info_t *p_qve_report_info, uint32_t supplemental_data_size,
-	uint8_t *p_supplemental_data)
+	sgx_ql_qe_report_info_t *p_qve_report_info, uint32_t supplemental_data_major_version,
+	uint32_t supplemental_data_size, uint8_t *p_supplemental_data)
 
 {
 	enclave_verifier_err_t err = -ENCLAVE_VERIFIER_ERR_UNKNOWN;
 	quote3_error_t dcap_ret = SGX_QL_ERROR_UNEXPECTED;
 
-	/* sgx_ecdsa_qve instance re-uses this code and thus we need to distinguish
-	 * it from sgx_ecdsa instance.
-	 */
-	bool is_sgx_ecdsa_qve = p_qve_report_info != NULL;
-	if (is_sgx_ecdsa_qve) {
+	if (p_qve_report_info != NULL) {
 		/* Set enclave load policy of Quote Verification Library before loading the QvE enclave. */
 		dcap_ret = sgx_qv_set_enclave_load_policy(SGX_QL_DEFAULT);
 		if (dcap_ret == SGX_QL_SUCCESS)
@@ -88,12 +88,15 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(
 		}
 	}
 
+	tee_supp_data_descriptor_t supp_data = { .major_version = supplemental_data_major_version,
+						 .data_size = supplemental_data_size,
+						 .p_data = p_supplemental_data };
+
 	if (collateral_pck_crl_issuer_chain && collateral_root_ca_crl && collateral_pck_crl &&
 	    collateral_tcb_info_issuer_chain && collateral_tcb_info &&
 	    collateral_qe_identity_issuer_chain && collateral_qe_identity) {
 		sgx_ql_qve_collateral_t collateral = {
 			.version = collateral_version,
-			.tee_type = 0x00000000, /* SGX */
 			.pck_crl_issuer_chain = collateral_pck_crl_issuer_chain,
 			.pck_crl_issuer_chain_size = collateral_pck_crl_issuer_chain_size,
 			.root_ca_crl = collateral_root_ca_crl,
@@ -110,16 +113,26 @@ enclave_verifier_err_t ocall_ecdsa_verify_evidence(
 			.qe_identity_size = collateral_qe_identity_size,
 		};
 
-		dcap_ret = sgx_qv_verify_quote(p_quote, quote_size, &collateral,
-					       expiration_check_date,
-					       p_collateral_expiration_status,
-					       p_quote_verification_result, p_qve_report_info,
-					       supplemental_data_size, p_supplemental_data);
+		uint32_t *p_type = (uint32_t *)(p_quote + sizeof(uint16_t) * 2);
+		if (*p_type == 0x00) {
+			collateral.tee_type = 0x00000000; /* SGX */
+		} else if (*p_type == 0x81) {
+			collateral.tee_type = 0x00000081; /* TDX */
+		} else {
+			RTLS_ERR("unknown quote type: 0x%08x\n", *p_type);
+			err = ENCLAVE_VERIFIER_ERR_INVALID;
+			goto errret;
+		}
+
+		dcap_ret = tee_verify_quote(p_quote, quote_size, (const uint8_t *)&collateral,
+					    expiration_check_date, p_collateral_expiration_status,
+					    p_quote_verification_result, p_qve_report_info,
+					    &supp_data);
 	} else {
-		dcap_ret = sgx_qv_verify_quote(p_quote, quote_size, NULL, expiration_check_date,
-					       p_collateral_expiration_status,
-					       p_quote_verification_result, p_qve_report_info,
-					       supplemental_data_size, p_supplemental_data);
+		dcap_ret = tee_verify_quote(p_quote, quote_size, NULL, expiration_check_date,
+					    p_collateral_expiration_status,
+					    p_quote_verification_result, p_qve_report_info,
+					    &supp_data);
 	}
 	if (dcap_ret == SGX_QL_SUCCESS)
 		RTLS_INFO("sgx qv verifies quote successfully.\n");

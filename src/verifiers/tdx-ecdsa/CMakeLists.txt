@@ -2,7 +2,8 @@
 project(verifier_tdx_ecdsa)
 
 # Set include directory
-set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+set(INCLUDE_DIRS ${INCLUDE_DIRS}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/../../include
                  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/rats-tls
                  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/internal
                  ${CMAKE_CURRENT_SOURCE_DIR}
@@ -28,9 +29,16 @@ set(SOURCES cleanup.c
             verify_evidence.c
             )
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
-target_link_libraries(${PROJECT_NAME} ${EXTRA_LINK_LIBRARY} ${RATS_TLS_LDFLAGS} ${RTLS_LIB})
-set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${VERSION} SOVERSION ${VERSION_MAJOR})
+if(SGX)
+    MESSAGE(ERROR "ENCLAVE_INCLUDES = ${ENCLAVE_INCLUDES}.")
+    add_trusted_library(${PROJECT_NAME} SRCS ${SOURCES})
+    add_dependencies(${PROJECT_NAME} rtls_edl_t)
+else()
+    add_library(${PROJECT_NAME} SHARED ${SOURCES})
+    target_link_libraries(${PROJECT_NAME} ${EXTRA_LINK_LIBRARY} ${RATS_TLS_LDFLAGS} ${RTLS_LIB})
+    set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${VERSION} SOVERSION ${VERSION_MAJOR})
+endif()
+
 # Install library
 install(TARGETS ${PROJECT_NAME}
             DESTINATION ${RATS_TLS_INSTALL_LIBV_PATH})

@@ -25,15 +25,14 @@ rtls_core_context_t global_core_context;
 /* The global log level used by log.h */
 rats_tls_log_level_t global_log_level = RATS_TLS_LOG_LEVEL_DEFAULT;
 
-#ifdef SGX
 // clang-format off
-#define INSTANCE_NUM  8
+#ifdef SGX
+#define INSTANCE_NUM  (sizeof(enclave_instance_name) / sizeof(enclave_instance_name[0]))
 #define INSTANCE_NAME 32
 // clang-format on
-char enclave_instance_name[INSTANCE_NUM][INSTANCE_NAME] = { "nullcrypto",    "nullattester",
-							    "nullverifier",  "sgx_ecdsa",
-							    "sgx_ecdsa_qve", "sgx_la",
-							    "nulltls",	     "openssl" };
+char enclave_instance_name[][INSTANCE_NAME] = { "nullcrypto", "nullattester", "nullverifier",
+						"sgx_ecdsa",  "tdx_ecdsa",    "sgx_ecdsa_qve",
+						"sgx_la",     "nulltls",      "openssl" };
 void librats_tls_init(void)
 #else
 void __attribute__((constructor)) librats_tls_init(void)

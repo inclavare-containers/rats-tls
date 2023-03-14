@@ -108,6 +108,11 @@ rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) cons
 		err = rtls_enclave_verifier_post_init(name, NULL);
 		if (err != RATS_TLS_ERR_NONE)
 			return err;
+	} else if (!strcmp(name, "tdx_ecdsa")) {
+		libverifier_tdx_ecdsa_init();
+		err = rtls_enclave_verifier_post_init(name, NULL);
+		if (err != RATS_TLS_ERR_NONE)
+			return err;
 	} else if (!strcmp(name, "sgx_la")) {
 		libattester_sgx_la_init();
 		libverifier_sgx_la_init();
