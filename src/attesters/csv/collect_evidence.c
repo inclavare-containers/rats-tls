@@ -284,6 +284,7 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 
 	if (csv_get_hsk_cek_cert((const char *)chip_id, evidence_buffer)) {
 		RTLS_ERR("failed to load HSK and CEK cert\n");
+		ret = -1;
 		goto err_munmap;
 	}
 	evidence->report_len = sizeof(csv_evidence);
