@@ -21,6 +21,7 @@ set(SOURCES cleanup.c
 
 # Generate library
 add_trusted_library(${PROJECT_NAME} SRCS ${SOURCES})
+add_dependencies(${PROJECT_NAME} rtls_edl_t)
 
 # Install library
 install(TARGETS ${PROJECT_NAME}
