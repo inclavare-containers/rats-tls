@@ -65,6 +65,7 @@ tls_wrapper_err_t openssl_internal_negotiate(tls_wrapper_ctx_t *ctx, unsigned lo
 		return -TLS_WRAPPER_ERR_INVALID;
 	}
 
+	ERR_clear_error();
 	int err;
 	if (conf_flags & RATS_TLS_CONF_FLAGS_SERVER)
 		err = SSL_accept(ssl);
@@ -73,11 +74,13 @@ tls_wrapper_err_t openssl_internal_negotiate(tls_wrapper_ctx_t *ctx, unsigned lo
 
 	if (err != 1) {
 		if (conf_flags & RATS_TLS_CONF_FLAGS_SERVER)
-			RTLS_DEBUG("failed to negotiate %#x\n", err);
+			RTLS_ERR("failed to negotiate %d, SSL_get_error(): %d\n", err,
+				 SSL_get_error(ssl, err));
 		else
-			RTLS_DEBUG("failed to connect %#x\n", err);
-
-		print_openssl_err(ssl, err);
+			RTLS_ERR("failed to connect %d, SSL_get_error(): %d\n", err,
+				 SSL_get_error(ssl, err));
+		// TODO: handle result of SSL_get_error()
+		print_openssl_err_all(ssl, err);
 
 		return OPENSSL_ERR_CODE(err);
 	}
@@ -91,7 +94,6 @@ tls_wrapper_err_t openssl_internal_negotiate(tls_wrapper_ctx_t *ctx, unsigned lo
 
 	return TLS_WRAPPER_ERR_NONE;
 }
-
 
 tls_wrapper_err_t openssl_tls_negotiate(tls_wrapper_ctx_t *ctx, int fd)
 {
