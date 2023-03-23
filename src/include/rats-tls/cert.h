@@ -77,7 +77,7 @@ typedef struct {
 typedef struct {
 	cert_subject_t subject;
 	unsigned int cert_len;
-	uint8_t cert_buf[8192];
+	uint8_t *cert_buf;
 	uint8_t *evidence_buffer;
 	size_t evidence_buffer_size;
 	uint8_t *endorsements_buffer;
