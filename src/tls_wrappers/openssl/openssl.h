@@ -33,7 +33,7 @@ typedef struct {
 	SSL *ssl;
 } openssl_ctx_t;
 
-static inline void print_openssl_err(SSL *ssl, int ret)
+static inline void print_openssl_err_all()
 {
 	unsigned long l;
 

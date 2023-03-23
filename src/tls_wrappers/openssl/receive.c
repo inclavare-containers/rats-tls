@@ -19,9 +19,14 @@ tls_wrapper_err_t openssl_tls_receive(tls_wrapper_ctx_t *ctx, void *buf, size_t 
 	if (ssl_ctx == NULL || ssl_ctx->ssl == NULL)
 		return -TLS_WRAPPER_ERR_RECEIVE;
 
+	ERR_clear_error();
+
 	int rc = SSL_read(ssl_ctx->ssl, buf, (int)*buf_size);
 	if (rc <= 0) {
-		RTLS_ERR("ERROR: openssl_receive()\n");
+		// TODO: handle result of SSL_get_error()
+		RTLS_ERR("SSL_read() failed: %d, SSL_get_error(): %d\n", rc,
+			 SSL_get_error(ssl_ctx->ssl, rc));
+		print_openssl_err_all();
 		return -TLS_WRAPPER_ERR_RECEIVE;
 	}
 	*buf_size = (size_t)rc;

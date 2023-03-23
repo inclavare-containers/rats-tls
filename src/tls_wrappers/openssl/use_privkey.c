@@ -31,7 +31,8 @@ tls_wrapper_err_t openssl_tls_use_privkey(tls_wrapper_ctx_t *ctx, rats_tls_cert_
 	int ret = SSL_CTX_use_PrivateKey_ASN1(EPKEY, ssl_ctx->sctx, privkey_buf, (long)privkey_len);
 
 	if (ret != SSL_SUCCESS) {
-		RTLS_ERR("failed to use private key %d\n", ret);
+		RTLS_ERR("failed to use private key.\n");
+		print_openssl_err_all();
 		return OPENSSL_ERR_CODE(ret);
 	}
 

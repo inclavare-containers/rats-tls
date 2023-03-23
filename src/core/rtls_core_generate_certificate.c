@@ -164,6 +164,15 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	if (privkey_len) {
 		tls_wrapper_err_t t_err;
 
+#if 0
+	#ifndef SGX
+		/* Dump private key of this certificate */
+		FILE *fp = fopen("/tmp/privkey.der", "wb");
+		fwrite(privkey_buf, privkey_len, 1, fp);
+		fclose(fp);
+	#endif
+#endif
+
 		t_err = ctx->tls_wrapper->opts->use_privkey(ctx->tls_wrapper, ctx->config.cert_algo,
 							    privkey_buf, privkey_len);
 		if (t_err != TLS_WRAPPER_ERR_NONE) {

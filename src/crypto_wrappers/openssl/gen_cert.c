@@ -222,6 +222,15 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	RTLS_DEBUG("self-signing certificate generated. cert_buf: %p, cert_len: %u\n",
 		   cert_info->cert_buf, cert_info->cert_len);
 
+#if 0
+	#ifndef SGX
+	/* Dump certificate */
+	FILE *fp = fopen("/tmp/cert_generated.der", "wb");
+	fwrite(cert_info->cert_buf, cert_info->cert_len, 1, fp);
+	fclose(fp);
+	#endif
+#endif
+
 	ret = CRYPTO_WRAPPER_ERR_NONE;
 
 err:
