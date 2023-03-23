@@ -7,11 +7,6 @@
 #ifndef _ENCLAVE_CERT_H
 #define _ENCLAVE_CERT_H
 
-#define SGX_ECDSA_QUOTE_SZ 8192
-#define TDX_ECDSA_QUOTE_SZ 8192
-#define TDEL_INFO_SZ	   56
-#define TDEL_DATA_SZ	   65536
-
 typedef struct {
 	const unsigned char *organization;
 	const unsigned char *organization_unit;
@@ -40,10 +35,8 @@ typedef struct {
 } la_attestation_evidence_t;
 
 typedef struct {
-	uint8_t quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ + TDEL_DATA_SZ];
+	uint8_t quote[8192];
 	uint32_t quote_len;
-	uint32_t tdel_info_len;
-	uint32_t tdel_data_len;
 } tdx_attestation_evidence_t;
 
 typedef struct {

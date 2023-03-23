@@ -249,10 +249,6 @@ tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
 		ev.tdx.rtmr = (char *)quote4->report_body.rt_mr;
 		ev.type = TDX_ECDSA;
 		ev.quote = (char *)quote4;
-		ev.tdx.tdel_info = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ]);
-		ev.tdx.tdel_info_sz = evidence.tdx.tdel_info_len;
-		ev.tdx.tdel_data = &(evidence.tdx.quote[TDX_ECDSA_QUOTE_SZ + TDEL_INFO_SZ]);
-		ev.tdx.tdel_data_sz = evidence.tdx.tdel_data_len;
 	}
 #endif
 	else if (!strncmp(evidence.type, "csv", sizeof(evidence.type))) {
