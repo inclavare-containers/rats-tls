@@ -109,7 +109,7 @@ Note that if you want to run SEV-SNP remote attestation, please refer to [link](
 
 **Notice: special prerequisites for CSV(2) remote attestation in software capability.**
 
-- Kernel support CSV(2) runtime attestation, please manually apply [theses patches](https://gitee.com/anolis/cloud-kernel/pulls/412)
+- Kernel support CSV(2) runtime attestation, please manually apply these patches [1](https://gitee.com/anolis/cloud-kernel/pulls/108) and [2](https://gitee.com/anolis/cloud-kernel/pulls/412).
 
 ## Specify the instance type
 
