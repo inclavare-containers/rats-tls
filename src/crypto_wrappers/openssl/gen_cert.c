@@ -213,14 +213,15 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	if (!X509_sign(cert, pkey, EVP_sha256()))
 		goto err;
 
-	der = cert_info->cert_buf;
-	len = i2d_X509(cert, &der);
+	cert_info->cert_buf = NULL;
+	len = i2d_X509(cert, &cert_info->cert_buf);
 	if (len < 0)
 		goto err;
 
 	cert_info->cert_len = len;
 
-	RTLS_DEBUG("self-signing certificate generated\n");
+	RTLS_DEBUG("self-signing certificate generated. cert_buf: %p, cert_len: %u\n",
+		   cert_info->cert_buf, cert_info->cert_len);
 
 	ret = CRYPTO_WRAPPER_ERR_NONE;
 

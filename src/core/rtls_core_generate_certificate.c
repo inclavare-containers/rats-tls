@@ -102,11 +102,13 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 			.organization = (const unsigned char *)"Inclavare Containers",
 			.common_name = (const unsigned char *)"RATS-TLS",
 		},
+		.cert_buf = NULL,
+		.cert_len = 0,
+		.evidence_buffer = NULL,
+		.evidence_buffer_size = 0,
+		.endorsements_buffer = NULL,
+		.endorsements_buffer_size = 0,
 	};
-	cert_info.evidence_buffer = NULL;
-	cert_info.evidence_buffer_size = 0;
-	cert_info.endorsements_buffer = NULL;
-	cert_info.endorsements_buffer_size = 0;
 
 	/* Get DICE evidence buffer */
 	/* This check is a workaround for the nullattester.
@@ -164,13 +166,21 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 
 		t_err = ctx->tls_wrapper->opts->use_privkey(ctx->tls_wrapper, ctx->config.cert_algo,
 							    privkey_buf, privkey_len);
-		if (t_err != TLS_WRAPPER_ERR_NONE)
+		if (t_err != TLS_WRAPPER_ERR_NONE) {
+			if (cert_info.cert_buf)
+				free(cert_info.cert_buf);
 			return t_err;
+		}
 
 		t_err = ctx->tls_wrapper->opts->use_cert(ctx->tls_wrapper, &cert_info);
-		if (t_err != TLS_WRAPPER_ERR_NONE)
+		if (t_err != TLS_WRAPPER_ERR_NONE) {
+			if (cert_info.cert_buf)
+				free(cert_info.cert_buf);
 			return t_err;
+		}
 	}
+	if (cert_info.cert_buf)
+		free(cert_info.cert_buf);
 
 	/* Prevent from re-generation of TLS certificate */
 	ctx->flags |= RATS_TLS_CTX_FLAGS_CERT_CREATED;
