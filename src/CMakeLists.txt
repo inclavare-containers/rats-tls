@@ -109,6 +109,7 @@ install(TARGETS ${RTLS_LIB}
 # Install header
 set(RTLS_INCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/api.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/cert.h
+                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/claim.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/crypto_wrapper.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/attester.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/verifier.h
@@ -118,6 +119,6 @@ set(RTLS_INCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/api.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/tls_wrapper.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/hash.h
                        )
-install(DIRECTORY DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH}/rats-tls)
+install(DIRECTORY DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH})
 install(FILES ${RTLS_INCLUDE_FILES}
-DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH}/rats-tls)
+DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH})

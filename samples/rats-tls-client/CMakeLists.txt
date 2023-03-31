@@ -42,7 +42,6 @@ else()
                      ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include/rats-tls
                      ${RATS_TLS_INSTALL_INCLUDE_PATH}
                      ${RATS_TLS_INSTALL_INCLUDE_PATH}/edl
-                     ${RATS_TLS_INSTALL_INCLUDE_PATH}/rats-tls
                      )
     set(LIBRARY_DIRS ${RATS_TLS_INSTALL_LIB_PATH})
 endif()
