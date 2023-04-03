@@ -2,10 +2,13 @@ FROM openanolis/anolisos:8.6-x86_64
 
 LABEL maintainer="Shirong Hao <shirong@linux.alibaba.com>"
 
+RUN yum install -y --nogpgcheck epel-release
+
 RUN dnf clean all && rm -r /var/cache/dnf && \
     dnf --enablerepo=PowerTools install -y git wget \
     make cmake autoconf libtool gcc gcc-c++ \
-    openssl-devel libcurl-devel dnf-utils patch
+    openssl-devel libcurl-devel dnf-utils patch \
+    libcbor-devel
 
 WORKDIR /root
 
