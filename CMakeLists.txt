@@ -36,6 +36,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 #  normal: NORMAL
 #  occlum: OCCLUM
 #  sgx: SGX
+#  tdx: TDX
 if(RATS_TLS_BUILD_MODE STREQUAL "host")
     set(HOST 1)
     add_definitions(-DHOST)
@@ -95,9 +96,8 @@ include(CompilerOptions)
 if(SGX)
     include(SGXCommon)
     include(SGXSSL)
+    include(LibCBOR)
 endif()
-
-include(LibCBOR)
 
 # Subdirectory
 add_subdirectory(src)

@@ -8,7 +8,8 @@
 - libtool
 - gcc
 - g++
-- openssl-devel / libssl-dev
+- openssl-devel / libssl-dev (only needed in host/tdx mode)
+- libcbor-devel / libcbor-dev (only needed in host/tdx mode)
 - cargo (only needed in host mode)
 - SGX driver, Intel SGX SDK & PSW: Please refer to this [guide](https://download.01.org/intel-sgx/sgx-linux/2.18/docs/Intel_SGX_SW_Installation_Guide_for_Linux.pdf) to install.
   - Requires Intel SGX SDK and PSW version >= 2.18
