@@ -9,7 +9,8 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get install -y make git vim clang-format-9 gcc \
     pkg-config protobuf-compiler debhelper cmake \
     wget net-tools curl file gnupg tree libcurl4-openssl-dev \
-    libbinutils libseccomp-dev libssl-dev binutils-dev libprotoc-dev
+    libbinutils libseccomp-dev libssl-dev binutils-dev libprotoc-dev \
+    libcbor-dev
 
 WORKDIR /root
 
