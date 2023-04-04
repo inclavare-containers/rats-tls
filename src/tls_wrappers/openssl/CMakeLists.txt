@@ -34,8 +34,7 @@ set(SOURCES cleanup.c
 
 # Generate library
 if(SGX)
-    set(DEPEND_TRUSTED_LIBS sgx_tsgxssl sgx_tsgxssl_ssl)
-    add_trusted_library(${PROJECT_NAME} SRCS ${SOURCES} TRUSTED_LIBS ${DEPEND_TRUSTED_LIBS})
+    add_trusted_library(${PROJECT_NAME} SRCS ${SOURCES})
     add_dependencies(${PROJECT_NAME} intel-sgx-ssl)
 else()
     add_library(${PROJECT_NAME} SHARED ${SOURCES})

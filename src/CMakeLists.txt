@@ -93,7 +93,7 @@ endif()
 
 # Generate library
 if(SGX)
-    add_trusted_library(${RTLS_LIB} SRCS ${SOURCES} TRUSTED_LIBS ${DEPEND_TRUSTED_LIBS})
+    add_trusted_library(${RTLS_LIB} SRCS ${SOURCES})
     add_dependencies(${RTLS_LIB} ${DEPEND_TRUSTED_LIBS})
 else()
     add_library(${RTLS_LIB} SHARED ${SOURCES})
