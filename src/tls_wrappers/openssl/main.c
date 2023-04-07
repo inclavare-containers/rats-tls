@@ -7,6 +7,7 @@
 #include <rats-tls/tls_wrapper.h>
 #include <rats-tls/log.h>
 #include <rats-tls/cert.h>
+#include "openssl.h"
 
 extern tls_wrapper_err_t openssl_tls_pre_init(void);
 extern tls_wrapper_err_t openssl_tls_init(tls_wrapper_ctx_t *);
@@ -33,6 +34,8 @@ static tls_wrapper_opts_t openssl_opts = {
 	.cleanup = openssl_tls_cleanup,
 };
 
+int openssl_ex_data_idx;
+
 #ifdef SGX
 void libtls_wrapper_openssl_init(void)
 #else
@@ -44,4 +47,6 @@ void __attribute__((constructor)) libtls_wrapper_openssl_init(void)
 	tls_wrapper_err_t err = tls_wrapper_register(&openssl_opts);
 	if (err != TLS_WRAPPER_ERR_NONE)
 		RTLS_ERR("failed to register the tls wrapper 'openssl' %#x\n", err);
+
+	openssl_ex_data_idx = X509_STORE_get_ex_new_index(0, NULL, NULL, NULL, NULL);
 }

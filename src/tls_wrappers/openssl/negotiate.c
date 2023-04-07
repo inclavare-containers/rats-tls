@@ -8,7 +8,6 @@
 #include <rats-tls/log.h>
 #include <rats-tls/err.h>
 #include <rats-tls/tls_wrapper.h>
-#include "per_thread.h"
 #include "openssl.h"
 
 extern int verify_certificate(int preverify_ok, X509_STORE_CTX *store);
@@ -43,20 +42,7 @@ tls_wrapper_err_t openssl_internal_negotiate(tls_wrapper_ctx_t *ctx, unsigned lo
 		return -TLS_WRAPPER_ERR_NO_MEM;
 
 	X509_STORE *cert_store = SSL_CTX_get_cert_store(ssl_ctx->sctx);
-	int ex_data_idx = X509_STORE_get_ex_new_index(0, "ex_data", NULL, NULL, NULL);
-	X509_STORE_set_ex_data(cert_store, ex_data_idx, ctx);
-
-	int *ex_data = calloc(1, sizeof(*ex_data));
-	if (!ex_data) {
-		RTLS_ERR("failed to calloc ex_data\n");
-		return -TLS_WRAPPER_ERR_NO_MEM;
-	}
-
-	*ex_data = ex_data_idx;
-	if (!per_thread_setspecific((void *)ex_data)) {
-		RTLS_ERR("failed to store ex_data\n");
-		return -TLS_WRAPPER_ERR_INVALID;
-	}
+	X509_STORE_set_ex_data(cert_store, openssl_ex_data_idx, ctx);
 
 	/* Attach openssl to the socket */
 	int ret = SSL_set_fd(ssl, fd);

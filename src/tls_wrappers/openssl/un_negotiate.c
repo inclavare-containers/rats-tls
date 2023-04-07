@@ -11,7 +11,6 @@
 #include <rats-tls/tls_wrapper.h>
 #include <internal/core.h>
 #include <internal/dice.h>
-#include "per_thread.h"
 #include "openssl.h"
 
 static int rtls_memcpy_s(void *dst, uint32_t dst_size, const void *src, uint32_t num_bytes)
@@ -153,13 +152,7 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 #endif
 
 	X509_STORE *cert_store = X509_STORE_CTX_get0_store(ctx);
-	int *ex_data = per_thread_getspecific();
-	if (!ex_data) {
-		RTLS_ERR("failed to get ex_data\n");
-		return 0;
-	}
-
-	tls_wrapper_ctx_t *tls_ctx = X509_STORE_get_ex_data(cert_store, *ex_data);
+	tls_wrapper_ctx_t *tls_ctx = X509_STORE_get_ex_data(cert_store, openssl_ex_data_idx);
 	if (!tls_ctx) {
 		RTLS_ERR("failed to get tls_wrapper_ctx pointer\n");
 		return 0;

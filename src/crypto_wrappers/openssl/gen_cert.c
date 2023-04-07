@@ -124,7 +124,6 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	X509 *cert = NULL;
 	X509_NAME *name;
 	EVP_PKEY *pkey = NULL;
-	unsigned char *der;
 	int len;
 	int ret;
 
