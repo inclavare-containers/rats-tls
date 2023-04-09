@@ -189,8 +189,7 @@ enclave_attester_err_t dice_generate_pubkey_hash_value_buffer(hash_algo_t pubkey
 	if (!cbor_array_push(root, cbor_move(cbor_build_bytestring(pubkey_hash, hash_size))))
 		goto err;
 
-	*pubkey_hash_value_buffer_size = cbor_serialize_alloc(root, pubkey_hash_value_buffer, NULL);
-	if (!*pubkey_hash_value_buffer_size)
+	if (!cbor_serialize_alloc(root, pubkey_hash_value_buffer, pubkey_hash_value_buffer_size))
 		goto err;
 
 	ret = ENCLAVE_ATTESTER_ERR_NONE;
@@ -248,8 +247,7 @@ dice_generate_claims_buffer(hash_algo_t pubkey_hash_algo, const uint8_t *pubkey_
 
 	/* Generate claims buffer */
 	ret = ENCLAVE_ATTESTER_ERR_NO_MEM;
-	*claims_buffer_size_out = cbor_serialize_alloc(root, claims_buffer_out, NULL);
-	if (!*claims_buffer_size_out)
+	if (!cbor_serialize_alloc(root, claims_buffer_out, claims_buffer_size_out))
 		goto err;
 
 	ret = ENCLAVE_ATTESTER_ERR_NONE;
@@ -299,8 +297,7 @@ enclave_attester_err_t dice_generate_evidence_buffer_with_tag(
 			     cbor_move(cbor_build_bytestring(claims_buffer, claims_buffer_size))))
 		goto err;
 	cbor_tag_set_item(root, array);
-	*evidence_buffer_size_out = cbor_serialize_alloc(root, evidence_buffer_out, NULL);
-	if (!*evidence_buffer_size_out)
+	if (!cbor_serialize_alloc(root, evidence_buffer_out, evidence_buffer_size_out))
 		goto err;
 
 	ret = ENCLAVE_ATTESTER_ERR_NONE;
@@ -384,9 +381,8 @@ enclave_attester_err_t dice_generate_endorsements_buffer_with_tag(
 			goto err;
 
 		cbor_tag_set_item(root, array);
-		*endorsements_buffer_size_out =
-			cbor_serialize_alloc(root, endorsements_buffer_out, NULL);
-		if (!*endorsements_buffer_size_out)
+		if (!cbor_serialize_alloc(root, endorsements_buffer_out,
+					  endorsements_buffer_size_out))
 			goto err;
 	} else {
 		RTLS_FATAL(
