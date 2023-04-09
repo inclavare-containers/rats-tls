@@ -14,16 +14,66 @@
 
 rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 {
+	uint8_t *privkey_buf = NULL;
+	size_t privkey_len = 0;
+	uint8_t *cert_buf = NULL;
+	size_t cert_len = 0;
+
+	rats_tls_err_t ret = RATS_TLS_ERR_NONE;
+
+	ret = rtls_core_generate_certificate_internal(ctx, &privkey_buf, &privkey_len, &cert_buf,
+						      &cert_len);
+	if (ret)
+		goto err;
+
+	/* Use the TLS certificate and private key for TLS session */
+	if (privkey_len) {
+#if 0
+	#ifndef SGX
+			/* Dump private key of this certificate */
+			FILE *fp = fopen("/tmp/privkey.der", "wb");
+			fwrite(privkey_buf, privkey_len, 1, fp);
+			fclose(fp);
+	#endif
+#endif
+		ret = ctx->tls_wrapper->opts->use_privkey(ctx->tls_wrapper, ctx->config.cert_algo,
+							  privkey_buf, privkey_len);
+		if (ret != TLS_WRAPPER_ERR_NONE)
+			goto err;
+
+		ret = ctx->tls_wrapper->opts->use_cert(ctx->tls_wrapper, cert_buf, cert_len);
+		if (ret != TLS_WRAPPER_ERR_NONE)
+			goto err;
+	}
+
+	ret = RATS_TLS_ERR_NONE;
+err:
+	if (privkey_buf)
+		free(privkey_buf);
+	if (cert_buf)
+		free(cert_buf);
+	return ret;
+}
+
+rats_tls_err_t rtls_core_generate_certificate_internal(rtls_core_context_t *ctx,
+						       uint8_t **privkey_buf /* out */,
+						       size_t *privkey_len /* out */,
+						       uint8_t **cert_buf /* out */,
+						       size_t *cert_len /* out */
+)
+{
 	RTLS_DEBUG("ctx %p\n", ctx);
 
 	if (!ctx || !ctx->tls_wrapper || !ctx->tls_wrapper->opts || !ctx->crypto_wrapper ||
 	    !ctx->crypto_wrapper->opts || !ctx->crypto_wrapper->opts->gen_pubkey_hash ||
-	    !ctx->crypto_wrapper->opts->gen_cert)
-		return -RATS_TLS_ERR_INVALID;
+	    !ctx->crypto_wrapper->opts->gen_cert || !privkey_buf || !privkey_len || !cert_buf ||
+	    !cert_len)
+		return RATS_TLS_ERR_INVALID;
 
-	/* Avoid re-generation of TLS certificates */
-	if (ctx->flags & RATS_TLS_CTX_FLAGS_CERT_CREATED)
-		return RATS_TLS_ERR_NONE;
+	*privkey_buf = NULL;
+	*privkey_len = 0;
+	*cert_buf = NULL;
+	*cert_len = 0;
 
 	/* Check whether the specified algorithm is supported.
 	 *
@@ -40,15 +90,13 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 		break;
 	default:
 		RTLS_DEBUG("unknown algorithm %d\n", ctx->config.cert_algo);
-		return -RATS_TLS_ERR_UNSUPPORTED_CERT_ALGO;
+		return RATS_TLS_ERR_UNSUPPORTED_CERT_ALGO;
 	}
 
 	/* Generate the new key */
 	crypto_wrapper_err_t c_err;
-	uint8_t privkey_buf[2048];
-	unsigned int privkey_len = sizeof(privkey_buf);
 	c_err = ctx->crypto_wrapper->opts->gen_privkey(ctx->crypto_wrapper, ctx->config.cert_algo,
-						       privkey_buf, &privkey_len);
+						       privkey_buf, privkey_len);
 	if (c_err != CRYPTO_WRAPPER_ERR_NONE)
 		return c_err;
 
@@ -160,39 +208,9 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	if (c_err != CRYPTO_WRAPPER_ERR_NONE)
 		return c_err;
 
-	/* Use the TLS certificate and private key for TLS session */
-	if (privkey_len) {
-		tls_wrapper_err_t t_err;
-
-#if 0
-	#ifndef SGX
-		/* Dump private key of this certificate */
-		FILE *fp = fopen("/tmp/privkey.der", "wb");
-		fwrite(privkey_buf, privkey_len, 1, fp);
-		fclose(fp);
-	#endif
-#endif
-
-		t_err = ctx->tls_wrapper->opts->use_privkey(ctx->tls_wrapper, ctx->config.cert_algo,
-							    privkey_buf, privkey_len);
-		if (t_err != TLS_WRAPPER_ERR_NONE) {
-			if (cert_info.cert_buf)
-				free(cert_info.cert_buf);
-			return t_err;
-		}
-
-		t_err = ctx->tls_wrapper->opts->use_cert(ctx->tls_wrapper, &cert_info);
-		if (t_err != TLS_WRAPPER_ERR_NONE) {
-			if (cert_info.cert_buf)
-				free(cert_info.cert_buf);
-			return t_err;
-		}
-	}
-	if (cert_info.cert_buf)
-		free(cert_info.cert_buf);
-
-	/* Prevent from re-generation of TLS certificate */
-	ctx->flags |= RATS_TLS_CTX_FLAGS_CERT_CREATED;
+	*cert_buf = cert_info.cert_buf;
+	cert_info.cert_buf = NULL;
+	*cert_len = cert_info.cert_len;
 
 	return RATS_TLS_ERR_NONE;
 }

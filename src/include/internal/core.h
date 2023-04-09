@@ -37,7 +37,13 @@ typedef struct dirent rtls_dirent;
 
 extern rtls_core_context_t global_core_context;
 
-extern rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *);
+extern rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx);
+
+extern rats_tls_err_t rtls_core_generate_certificate_internal(rtls_core_context_t *ctx,
+							      uint8_t **privkey_buf /* out */,
+							      size_t *privkey_len /* out */,
+							      uint8_t **cert_buf /* out */,
+							      size_t *cert_len /* out */);
 
 extern void rtls_exit(void);
 

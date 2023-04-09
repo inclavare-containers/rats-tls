@@ -3,3 +3,7 @@ add_subdirectory(rats-tls-server)
 if(SGX)
     add_subdirectory(sgx-stub-enclave)
 endif()
+
+if(NOT SGX)
+    add_subdirectory(openssl-hook)
+endif()

@@ -23,10 +23,13 @@
 #include <openssl/objects.h>
 #include <openssl/ec.h>
 #include <openssl/opensslv.h>
+#include <openssl/ssl.h>
 
 #define SSL_SUCCESS 1
 
 extern int openssl_ex_data_idx;
+
+extern int verify_certificate(int preverify_ok, X509_STORE_CTX *store);
 
 typedef struct {
 	SSL_CTX *sctx;

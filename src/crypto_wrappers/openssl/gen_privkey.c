@@ -9,10 +9,10 @@
 #include "openssl.h"
 
 crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
-					 uint8_t *privkey_buf, uint32_t *privkey_len)
+					 uint8_t **privkey_buf, uint32_t *privkey_len)
 {
 	openssl_ctx *octx = NULL;
-	unsigned char *p = privkey_buf;
+	uint8_t *p = NULL;
 	BIGNUM *e = NULL;
 	int len = 0;
 	int ret;
@@ -20,24 +20,19 @@ crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cer
 	RTLS_DEBUG("ctx %p, algo %d, privkey_buf %p, privkey_len %p\n", ctx, algo, privkey_buf,
 		   privkey_len);
 
-	if (!ctx || !privkey_len)
-		return -CRYPTO_WRAPPER_ERR_INVALID;
-
-	if (privkey_buf != NULL && *privkey_len == 0)
-		return -CRYPTO_WRAPPER_ERR_INVALID;
-
-	RTLS_DEBUG("%d-byte private key buffer requested ...\n", *privkey_len);
+	if (!ctx || !privkey_buf || !privkey_len)
+		return CRYPTO_WRAPPER_ERR_INVALID;
 
 	octx = ctx->crypto_private;
 
-	ret = -CRYPTO_WRAPPER_ERR_NO_MEM;
+	ret = CRYPTO_WRAPPER_ERR_NO_MEM;
 
 	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
 		octx->eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 		if (octx->eckey == NULL)
 			goto err;
 
-		ret = -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
+		ret = CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
 
 		EC_KEY_set_asn1_flag(octx->eckey, OPENSSL_EC_NAMED_CURVE);
 
@@ -54,22 +49,22 @@ crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cer
 		if (len < 0)
 			goto err;
 
-		if (p == NULL) {
-			*privkey_len = (uint32_t)len;
-			return CRYPTO_WRAPPER_ERR_NONE;
+		p = malloc(len);
+		if (!p) {
+			ret = CRYPTO_WRAPPER_ERR_NO_MEM;
+			goto err;
 		}
 
-		ret = -CRYPTO_WRAPPER_ERR_ECC_KEY_LEN;
-
-		if (*privkey_len < (uint32_t)len)
-			goto err;
-
-		len = i2d_ECPrivateKey(octx->eckey, &p);
+		uint8_t *tmp_p = p;
+		len = i2d_ECPrivateKey(octx->eckey, &tmp_p);
 		if (len < 0)
 			goto err;
 
-		RTLS_DEBUG("ECC-256 private key (%d-byte) in DER format generated\n", len);
+		*privkey_buf = p;
+		p = NULL;
+		*privkey_len = len;
 
+		RTLS_DEBUG("ECC-256 private key (%d-byte) in DER format generated\n", len);
 	} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
 		octx->key = RSA_new();
 		if (octx->key == NULL)
@@ -78,7 +73,7 @@ crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cer
 		if ((e = BN_new()) == NULL)
 			goto err;
 
-		ret = -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
+		ret = CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
 		BN_set_word(e, RSA_F4);
 		if (!RSA_generate_key_ex(octx->key, 3072, e, NULL))
 			goto err;
@@ -87,26 +82,25 @@ crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cer
 		if (len < 0)
 			goto err;
 
-		if (p == NULL) {
-			*privkey_len = (uint32_t)len;
-			return CRYPTO_WRAPPER_ERR_NONE;
+		p = malloc(len);
+		if (!p) {
+			ret = CRYPTO_WRAPPER_ERR_NO_MEM;
+			goto err;
 		}
 
-		ret = -CRYPTO_WRAPPER_ERR_RSA_KEY_LEN;
-
-		if (*privkey_len < (uint32_t)len)
-			goto err;
-
-		len = i2d_RSAPrivateKey(octx->key, &p);
+		uint8_t *tmp_p = p;
+		len = i2d_RSAPrivateKey(octx->key, &tmp_p);
 		if (len < 0)
 			goto err;
 
+		*privkey_buf = p;
+		p = NULL;
+		*privkey_len = len;
+
 		RTLS_DEBUG("RSA-3072 private key (%d-byte) in DER format generated\n", len);
 	} else {
-		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+		return CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
 	}
-
-	*privkey_len = (uint32_t)len;
 
 	return CRYPTO_WRAPPER_ERR_NONE;
 
@@ -129,5 +123,8 @@ err:
 		if (e)
 			BN_free(e);
 	}
+
+	if (p)
+		free(p);
 	return ret;
 }

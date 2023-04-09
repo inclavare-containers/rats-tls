@@ -35,7 +35,7 @@ typedef struct {
 	crypto_wrapper_err_t (*pre_init)(void);
 	crypto_wrapper_err_t (*init)(crypto_wrapper_ctx_t *ctx);
 	crypto_wrapper_err_t (*gen_privkey)(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
-					    uint8_t *privkey_buf, unsigned int *privkey_len);
+					    uint8_t **privkey_buf, size_t *privkey_len);
 	crypto_wrapper_err_t (*gen_pubkey_hash)(crypto_wrapper_ctx_t *ctx,
 						rats_tls_cert_algo_t algo, uint8_t *hash);
 	crypto_wrapper_err_t (*gen_hash)(crypto_wrapper_ctx_t *ctx, hash_algo_t hash_algo,

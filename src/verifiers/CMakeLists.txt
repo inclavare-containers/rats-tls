@@ -13,7 +13,7 @@ if(HOST OR TDX)
     add_subdirectory(csv)
 endif()
 
-if(TDX OR SGX)
+if(TDX OR SGX OR HOST)
     if(SGXDCAPQV_FOUND)
         add_subdirectory(tdx-ecdsa)
     else()

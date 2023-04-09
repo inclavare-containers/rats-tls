@@ -223,6 +223,7 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 					  &evidence_buffer_size, true);
 	if (rc != SSL_SUCCESS) {
 		RTLS_ERR("failed to extract the evidence extensions from the certificate %d\n", rc);
+		X509_STORE_CTX_set_error(ctx, X509_V_ERR_APPLICATION_VERIFICATION);
 		return rc;
 	}
 
@@ -232,6 +233,7 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 		free(evidence_buffer);
 		RTLS_ERR("failed to extract the endorsements extensions from the certificate %d\n",
 			 rc);
+		X509_STORE_CTX_set_error(ctx, X509_V_ERR_APPLICATION_VERIFICATION);
 		return rc;
 	}
 
@@ -240,8 +242,13 @@ int verify_certificate(int preverify_ok, X509_STORE_CTX *ctx)
 		endorsements_buffer, endorsements_buffer_size);
 	if (t_err != TLS_WRAPPER_ERR_NONE) {
 		RTLS_ERR("failed to verify certificate extension %#x\n", t_err);
+		/* Update cert verification result of current cert as X509_V_ERR_APPLICATION_VERIFICATION. 
+		 * Upper layer applcation like curl may rely on this to show the user the correct error message. */
+		X509_STORE_CTX_set_error(ctx, X509_V_ERR_APPLICATION_VERIFICATION);
 		return 0;
 	}
 
+	/* Clear verify errors here, so that later call to SSL_get_verify_result() will return X509_V_OK. */
+	X509_STORE_CTX_set_error(ctx, X509_V_OK);
 	return SSL_SUCCESS;
 }

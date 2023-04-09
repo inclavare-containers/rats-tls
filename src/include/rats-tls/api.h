@@ -151,4 +151,17 @@ rats_tls_err_t rats_tls_receive(rats_tls_handle handle, void *buf, size_t *buf_s
 rats_tls_err_t rats_tls_transmit(rats_tls_handle handle, void *buf, size_t *buf_size);
 rats_tls_err_t rats_tls_cleanup(rats_tls_handle handle);
 
+typedef enum {
+	OPENSSL_SSL_POINTER = 0x01000000, /* SSL *obj */
+	OPENSSL_SSL_CTX_POINTER, /* SSL_CTX *obj */
+} rats_tls_ssl_obj_type;
+
+typedef enum {
+	SETUP_VERIRIER,
+	SETUP_ATTESTER,
+} rats_tls_setup_type;
+
+rats_tls_err_t rats_tls_setup_ssl(rats_tls_handle handle, rats_tls_setup_type setup_type,
+				  rats_tls_ssl_obj_type obj_type, void *obj);
+
 #endif
