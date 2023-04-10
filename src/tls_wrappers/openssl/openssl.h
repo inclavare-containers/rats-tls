@@ -26,6 +26,8 @@
 
 #define SSL_SUCCESS 1
 
+extern int openssl_ex_data_idx;
+
 typedef struct {
 	SSL_CTX *sctx;
 	SSL *ssl;
