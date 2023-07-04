@@ -38,7 +38,7 @@ cmake -DBUILD_SAMPLES=on -H. -Bbuild
 make -C build install
 ```
 
-`{rats-tls-server,rats-tls-client}` will be installed to `/usr/share/rats-tls/samples/{rats-tls-server,rats-tls-client}` on your system. All instances are placed in `/opt/rats-tls/lib`.
+`{rats-tls-server,rats-tls-client}` will be installed to `/usr/share/rats-tls/samples/{rats-tls-server,rats-tls-client}` on your system. All instances are placed in `/usr/local/lib/rats-tls`.
 
 If you want to build instances related to sgx(sgx\_ecdsa, sgx\_ecdsa\_qve, sgx\_la), please type the following command.
 
