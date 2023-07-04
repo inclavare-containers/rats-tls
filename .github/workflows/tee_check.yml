@@ -1,0 +1,67 @@
+name: Runtime and cross_tee testing
+on:  [push, pull_request]
+
+jobs:
+    null_instance_check:
+      # differetn null instance combination  
+      strategy:
+        matrix:
+          tag: [anolis8.6, ubuntu20.04]
+
+      # if only specify a container image, can omit the `image` keyword 
+      # get the image from the docker hub 
+      container: runetest/compilation-testing:${{ matrix.tag }}
+  
+      # Use GitHub-hosted runner Ubuntu 20.04
+      runs-on: ubuntu-20.04
+      
+      defaults: 
+        run:
+          shell: bash
+          working-directory: ${{ github.workspace }}
+      env: 
+        HOME: /root
+      #todo:  use cache to boost the workflow
+      steps:
+        - name: Checkout Code
+          uses: actions/checkout@v2
+
+        - name: Build and install "host" mode
+          run: |
+            source /root/.bashrc
+            cmake -DBUILD_SAMPLES=on -H. -Bbuild
+            make -C build install
+
+        # install dependencies
+        - if: ${{matrix.tag == 'ubuntu20.04'}}
+          run: apt-get install lsof
+        - if: ${{matrix.tag == 'anolis8.6'}}
+          run: yum install lsof -y
+
+        - id: rand_port_1
+          uses: ./.github/actions/generate-random-port
+
+        - name: Host mode with nullattester/nullverifier/nulltls/nullcrypto 
+          working-directory: /usr/share/rats-tls/samples
+          run: | 
+            PORT=${{steps.rand_port_1.outputs.random-port}}
+            ./rats-tls-server -a nullattester -v nullverifier -t nulltls -c nullcrypto  -p $PORT -m & 
+            sleep 1
+            ./rats-tls-client -a nullattester -v nullverifier -t nulltls -c nullcrypto  -p $PORT -m 
+
+        - id: rand_port_2
+          uses: ./.github/actions/generate-random-port
+
+        - name: Host mode with nullattester/nullverifier/openssl/openssl
+          working-directory: /usr/share/rats-tls/samples
+          run: | 
+            PORT=${{steps.rand_port_2.outputs.random-port}}
+            ./rats-tls-server -a nullattester -v nullverifier -t openssl -c openssl -m -p $PORT & 
+            sleep 1 
+            ./rats-tls-client -a nullattester -v nullverifier -t openssl -c openssl -m -p $PORT 
+
+        - name: Clean the build
+          run: |
+            cd $GITHUB_WORKSPACE 
+            make -C build clean
+            make -C build uninstall 
