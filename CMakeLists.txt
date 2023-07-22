@@ -101,6 +101,7 @@ if(BUILD_SAMPLES)
     message(STATUS "Build Samples: on")
     add_subdirectory(samples)
 endif()
+add_subdirectory(fuzz)
 
 # Uninstall target
 if(NOT TARGET uninstall)
