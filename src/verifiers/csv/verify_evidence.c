@@ -10,7 +10,6 @@
 #include <rats-tls/verifier.h>
 #include <rats-tls/csv.h>
 #include "hygoncert.h"
-#include "csv_utils.h"
 
 static enclave_verifier_err_t verify_cert_chain(csv_evidence *evidence)
 {
@@ -24,35 +23,9 @@ static enclave_verifier_err_t verify_cert_chain(csv_evidence *evidence)
 	assert(sizeof(hygon_root_cert_t) == HYGON_CERT_SIZE);
 	assert(sizeof(csv_cert_t) == HYGON_CSV_CERT_SIZE);
 
-	/* The PEK and ChipId are stored in csv_attestation_report, it's necessary
-	 * to check whether PEK and ChipId have been tampered with.
-	 */
-	hash_block_t hmac;
-	uint8_t mnonce[CSV_ATTESTATION_MNONCE_SIZE] = {
-		0,
-	};
+	/* Retrieve PEK cert and ChipId */
 	int i, j;
 
-	/* Retrieve mnonce which is the key of sm3-hmac */
-	j = CSV_ATTESTATION_MNONCE_SIZE / sizeof(uint32_t);
-	for (i = 0; i < j; i++)
-		((uint32_t *)mnonce)[i] = ((uint32_t *)report->mnonce)[i] ^ report->anonce;
-
-	memset((void *)&hmac, 0, sizeof(hash_block_t));
-	if (sm3_hmac((const char *)mnonce, CSV_ATTESTATION_MNONCE_SIZE,
-		     (const unsigned char *)report + CSV_ATTESTATION_REPORT_HMAC_DATA_OFFSET,
-		     CSV_ATTESTATION_REPORT_HMAC_DATA_SIZE, (unsigned char *)&hmac,
-		     sizeof(hash_block_t))) {
-		RTLS_ERR("failed to compute sm3 hmac\n");
-		return err;
-	}
-	if (memcmp(&hmac, &report->hmac, sizeof(hash_block_t))) {
-		RTLS_ERR("PEK and ChipId may have been tampered with\n");
-		return err;
-	}
-	RTLS_DEBUG("check PEK and ChipId successfully\n");
-
-	/* Retrieve PEK cert and ChipId */
 	j = (offsetof(csv_attestation_report, reserved1) -
 	     offsetof(csv_attestation_report, pek_cert)) /
 	    sizeof(uint32_t);

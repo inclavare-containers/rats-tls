@@ -282,6 +282,32 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 
 	/* Fill evidence buffer with attestation report */
 	assert(sizeof(csv_attestation_report) <= CSV_GUEST_MAP_LEN);
+
+	/* The PEK and ChipId are stored in csv_attestation_report, it's necessary
+	 * to validate PEK and ChipId before transfer to verifier.
+	 */
+	hash_block_t hmac;
+
+	memset((void *)&hmac, 0, sizeof(hash_block_t));
+	ret = sm3_hmac((const char *)report_mnonce, CSV_ATTESTATION_MNONCE_SIZE,
+		       (const unsigned char *)attestation_report +
+			       CSV_ATTESTATION_REPORT_HMAC_DATA_OFFSET,
+		       CSV_ATTESTATION_REPORT_HMAC_DATA_SIZE, (unsigned char *)&hmac,
+		       sizeof(hash_block_t));
+	if (ret) {
+		RTLS_ERR("failed to compute sm3 hmac\n");
+		goto err_munmap;
+	}
+	ret = memcmp(&hmac, &attestation_report->hmac, sizeof(hash_block_t));
+	if (ret) {
+		RTLS_ERR("PEK and ChipId may have been tampered with\n");
+		goto err_munmap;
+	}
+	RTLS_DEBUG("check PEK and ChipId successfully\n");
+
+	/* Reserved1 field should be filled with 0 */
+	memset(attestation_report->reserved1, 0, sizeof(attestation_report->reserved1));
+
 	memcpy(evidence->report, (void *)user_data, sizeof(csv_attestation_report));
 
 	/* Fill in CEK cert and HSK cert */
