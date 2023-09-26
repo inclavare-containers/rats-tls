@@ -19,6 +19,7 @@ list(GET VERSION_LIST 2 VERSION_PATCH)
 option(BUILD_SAMPLES "Compile sample code along with libraries" ON)
 option(SGX_HW "Run SGX on hardware, OFF for simulation" ON)
 option(SGX_LVI_MITIGATION "Mitigation flag, default on" ON)
+option(BUILD_FUZZ "Use lib-fuzzer to fuzz the code, default OFF" OFF)
 
 # Define build mode
 set(RATS_TLS_BUILD_MODE "host"
@@ -100,6 +101,11 @@ add_subdirectory(src)
 if(BUILD_SAMPLES)
     message(STATUS "Build Samples: on")
     add_subdirectory(samples)
+endif()
+
+if(BUILD_FUZZ)
+    message(STATUS "Build Fuzz: on")
+    add_subdirectory(fuzz)
 endif()
 
 # Uninstall target
