@@ -26,6 +26,71 @@ extern "C" {
 #define FUZZ_IP	  "127.0.0.1"
 #define FUZZ_PORT 1234
 
+#ifdef SGX
+
+extern "C" {
+	#include <sgx_urts.h>
+	#include <sgx_quote.h>
+	#include "sgx_stub_u.h"
+}
+
+	#define ENCLAVE_FILENAME "sgx_stub_enclave.signed.so"
+rats_tls_log_level_t global_log_level = RATS_TLS_LOG_LEVEL_DEFAULT;
+
+static sgx_enclave_id_t load_enclave(bool debug_enclave)
+{
+	sgx_launch_token_t t;
+
+	memset(t, 0, sizeof(t));
+
+	sgx_enclave_id_t eid;
+	int updated = 0;
+	int ret = sgx_create_enclave(ENCLAVE_FILENAME, debug_enclave, &t, &updated, &eid, NULL);
+	if (ret != SGX_SUCCESS) {
+		RTLS_ERR("Failed to load enclave %d\n", ret);
+		return 0;
+	}
+
+	RTLS_INFO("Success to load enclave with enclave id %ld\n", eid);
+
+	return eid;
+}
+
+int main()
+{
+	uint32_t s_ip = inet_addr(FUZZ_IP);
+	uint16_t s_port = htons((uint16_t)FUZZ_PORT);
+
+	sgx_enclave_id_t enclave_id = load_enclave(false);
+	if (enclave_id == 0) {
+		RTLS_ERR("Failed to load sgx stub enclave\n");
+		return -1;
+	}
+
+	unsigned long flags = 0;
+	flags |= RATS_TLS_CONF_FLAGS_SERVER;
+	flags |= RATS_TLS_CONF_FLAGS_MUTUAL;
+	
+	// TODO: add sgx_ecdsa type
+	rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;
+	char *attester_type = "sgx_la";
+	char *verifier_type = "sgx_la";
+	char *tls_type = "openssl";
+	char *crypto_type = "openssl";
+
+	int ret = 0;
+	int sgx_status = ecall_server_startup((sgx_enclave_id_t)enclave_id, &ret, log_level,
+					      attester_type, verifier_type, tls_type, crypto_type,
+					      flags, s_ip, s_port);
+	if (sgx_status != SGX_SUCCESS || ret) {
+		RTLS_ERR("failed to startup enclave server: sgx status %d, ecall return %d\n",
+			 sgx_status, ret);
+		return -1;
+	}
+}
+
+#else
+
 int main()
 {
 	rats_tls_conf_t conf;
@@ -151,3 +216,5 @@ int main()
 	}
 	return 0;
 }
+
+#endif
