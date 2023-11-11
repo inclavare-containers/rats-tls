@@ -66,10 +66,11 @@ int main()
 		RTLS_ERR("Failed to load sgx stub enclave\n");
 		return -1;
 	}
+	RTLS_ERR("load enclave ok \n");
 
 	unsigned long flags = 0;
 	flags |= RATS_TLS_CONF_FLAGS_SERVER;
-	flags |= RATS_TLS_CONF_FLAGS_MUTUAL;
+	// flags |= RATS_TLS_CONF_FLAGS_MUTUAL;
 	
 	// TODO: add sgx_ecdsa type
 	rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;

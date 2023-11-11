@@ -57,33 +57,29 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 	}
 
 	FuzzedDataProvider fuzzed_data(data, size);
-	sgx_enclave_id_t enclave_id = load_enclave(fuzzed_data.ConsumeBool());
-	if (enclave_id == 0) {
-		RTLS_ERR("Failed to load sgx stub enclave\n");
-		return -1;
-	}
+
 
 	char *fuzz_conf_bytes = NULL;
 
 	uint32_t s_ip = inet_addr(FUZZ_IP);
 	uint16_t s_port = htons((uint16_t)FUZZ_PORT);
 
-	char *attester_type = (char *)malloc(20);
-	if (attester_type == NULL) {
-		return 0;
-	}
-	char *verifier_type = (char *)malloc(20);
-	if (verifier_type == NULL) {
-		return 0;
-	}
-	char *tls_type = (char *)malloc(20);
-	if (tls_type == NULL) {
-		return 0;
-	}
-	char *crypto_type = (char *)malloc(20);
-	if (crypto_type == NULL) {
-		return 0;
-	}
+	// char *attester_type = (char *)malloc(20);
+	// if (attester_type == NULL) {
+	// 	return 0;
+	// }
+	// char *verifier_type = (char *)malloc(20);
+	// if (verifier_type == NULL) {
+	// 	return 0;
+	// }
+	// char *tls_type = (char *)malloc(20);
+	// if (tls_type == NULL) {
+	// 	return 0;
+	// }
+	// char *crypto_type = (char *)malloc(20);
+	// if (crypto_type == NULL) {
+	// 	return 0;
+	// }
 
 
 	for (int i = 0; i < 9; i++) {
@@ -91,16 +87,27 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 			for (int k = 0; k < 4; k++) {
 				for (int l = 0; l < 4; l++) {
 					//TODO: other sgx type would support later
-					strcpy(attester_type, "sgx_la");
-					strcpy(verifier_type, "sgx_la");
-					strcpy(tls_type, "openssl");
-					strcpy(crypto_type, "openssl");
+					// strcpy(attester_type, "sgx_la");
+					// strcpy(verifier_type, "sgx_la");
+					// strcpy(tls_type, "openssl");
+					// strcpy(crypto_type, "openssl");
 
-					unsigned long flags = fuzzed_data.ConsumeIntegral<long>();
-					flags |= RATS_TLS_CONF_FLAGS_MUTUAL;
+					sgx_enclave_id_t enclave_id = load_enclave(false); 
+					if (enclave_id == 0) {
+						RTLS_ERR("Failed to load sgx stub enclave\n");
+						return -1;
+					}
+
+					char *attester_type = "sgx_la";
+					char *verifier_type = "sgx_la";
+					char *tls_type = "openssl";
+					char *crypto_type = "openssl";
+
+					unsigned long flags = 0;
+					// flags |= RATS_TLS_CONF_FLAGS_MUTUAL ;
 					int ret = 0;
-					rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;
-
+					rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_DEBUG;
+				
 					int sgx_status = ecall_client_startup(
 						(sgx_enclave_id_t)enclave_id, &ret, log_level,
 						fuzz_conf_bytes, attester_type, verifier_type,
@@ -110,16 +117,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 							"failed to startup client: sgx status %#x return %#x\n",
 							sgx_status, ret);
 					}
+					sgx_destroy_enclave(enclave_id);
 				}
 			}
 		}
 	}
 	/*clean up*/
-	free(fuzz_conf_bytes);
-	free(attester_type);
-	free(verifier_type);
-	free(tls_type);
-	free(crypto_type);
+	// free(fuzz_conf_bytes);
+	// free(attester_type);
+	// free(verifier_type);
+	// free(tls_type);
+	// free(crypto_type);
 
 	return 0;
 }
