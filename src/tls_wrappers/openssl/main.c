@@ -13,9 +13,11 @@ extern tls_wrapper_err_t openssl_tls_pre_init(void);
 extern tls_wrapper_err_t openssl_tls_init(tls_wrapper_ctx_t *);
 extern tls_wrapper_err_t openssl_tls_use_privkey(tls_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
 						 void *privkey_buf, size_t privkey_len);
-extern tls_wrapper_err_t openssl_tls_use_cert(tls_wrapper_ctx_t *ctx,
-					      rats_tls_cert_info_t *cert_info);
+extern tls_wrapper_err_t openssl_tls_use_cert(tls_wrapper_ctx_t *ctx, uint8_t *cert_buf,
+					      size_t cert_len);
 extern tls_wrapper_err_t openssl_tls_negotiate(tls_wrapper_ctx_t *, int fd);
+extern tls_wrapper_err_t openssl_setup_ssl(tls_wrapper_ctx_t *ctx, rats_tls_setup_type setup_type,
+					   rats_tls_ssl_obj_type obj_type, void *obj);
 extern tls_wrapper_err_t openssl_tls_transmit(tls_wrapper_ctx_t *, void *, size_t *);
 extern tls_wrapper_err_t openssl_tls_receive(tls_wrapper_ctx_t *, void *, size_t *);
 extern tls_wrapper_err_t openssl_tls_cleanup(tls_wrapper_ctx_t *);
@@ -29,6 +31,7 @@ static tls_wrapper_opts_t openssl_opts = {
 	.use_privkey = openssl_tls_use_privkey,
 	.use_cert = openssl_tls_use_cert,
 	.negotiate = openssl_tls_negotiate,
+	.setup_ssl = openssl_setup_ssl,
 	.transmit = openssl_tls_transmit,
 	.receive = openssl_tls_receive,
 	.cleanup = openssl_tls_cleanup,

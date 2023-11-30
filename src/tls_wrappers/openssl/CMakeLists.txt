@@ -22,6 +22,7 @@ set(SOURCES cleanup.c
             init.c
             main.c
             negotiate.c
+            setup_ssl.c
             un_negotiate.c
             pre_init.c
             receive.c

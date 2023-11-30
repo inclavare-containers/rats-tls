@@ -10,8 +10,6 @@
 #include <rats-tls/tls_wrapper.h>
 #include "openssl.h"
 
-extern int verify_certificate(int preverify_ok, X509_STORE_CTX *store);
-
 tls_wrapper_err_t openssl_internal_negotiate(tls_wrapper_ctx_t *ctx, unsigned long conf_flags,
 					     int fd, int (*verify)(int, X509_STORE_CTX *))
 {

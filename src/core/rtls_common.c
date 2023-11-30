@@ -227,7 +227,7 @@ rats_tls_log_level_t rtls_loglevel_getenv(const char *name)
 rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) const char *realpath,
 				  __attribute__((unused)) void **handle)
 {
-	*handle = dlopen(realpath, RTLD_LAZY);
+	*handle = dlopen(realpath, RTLD_LAZY | RTLD_DEEPBIND);
 	if (*handle == NULL) {
 		RTLS_ERR("failed on dlopen(): %s\n", dlerror());
 		return -RATS_TLS_ERR_DLOPEN;

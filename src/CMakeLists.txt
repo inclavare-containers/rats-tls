@@ -44,6 +44,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/api/rats_tls_receive.c
     ${CMAKE_CURRENT_SOURCE_DIR}/api/rats_tls_transmit.c
     ${CMAKE_CURRENT_SOURCE_DIR}/api/rats_tls_callback.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/api/rats_tls_setup_ssl.c
     ${CMAKE_CURRENT_SOURCE_DIR}/crypto_wrappers/api/crypto_wrapper_register.c
     ${CMAKE_CURRENT_SOURCE_DIR}/crypto_wrappers/internal/crypto_wrapper.c
     ${CMAKE_CURRENT_SOURCE_DIR}/crypto_wrappers/internal/rtls_crypto_wrapper_load_all.c
