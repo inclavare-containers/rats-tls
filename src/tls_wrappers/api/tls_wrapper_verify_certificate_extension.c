@@ -34,17 +34,26 @@ tls_wrapper_verify_evidence(tls_wrapper_ctx_t *tls_ctx, attestation_evidence_t *
 	    !tls_ctx->rtls_handle->verifier->opts->verify_evidence)
 		return -TLS_WRAPPER_ERR_INVALID;
 
-	if (strcmp(tls_ctx->rtls_handle->verifier->opts->type, evidence->type) &&
-	    !(tls_ctx->rtls_handle->flags & RATS_TLS_CONF_FLAGS_VERIFIER_ENFORCED)) {
-		RTLS_WARN("type doesn't match between verifier '%s' and evidence '%s'\n",
-			  tls_ctx->rtls_handle->verifier->opts->name, evidence->type);
-		rats_tls_err_t tlserr =
-			rtls_verifier_select(tls_ctx->rtls_handle, evidence->type,
-					     tls_ctx->rtls_handle->config.cert_algo);
-		if (tlserr != RATS_TLS_ERR_NONE) {
-			RTLS_ERR("the verifier selecting err %#x during verifying cert extension\n",
-				 tlserr);
-			return -TLS_WRAPPER_ERR_INVALID;
+	if (!(tls_ctx->rtls_handle->flags & RATS_TLS_CONF_FLAGS_VERIFIER_ENFORCED)) {
+		char *type;
+
+		if (evidence->type[0])
+			type = evidence->type;
+		else
+			type = "nullverifier";
+
+		if (strcmp(tls_ctx->rtls_handle->verifier->opts->type, type)) {
+			RTLS_DEBUG("Requesting verifier '%s' against current verifier '%s'\n", type,
+				   tls_ctx->rtls_handle->verifier->opts->name);
+
+			rats_tls_err_t tlserr = rtls_verifier_select(
+				tls_ctx->rtls_handle, type, tls_ctx->rtls_handle->config.cert_algo);
+			if (tlserr != RATS_TLS_ERR_NONE) {
+				RTLS_ERR(
+					"the verifier selecting err %#x during verifying cert extension\n",
+					tlserr);
+				return -TLS_WRAPPER_ERR_INVALID;
+			}
 		}
 	}
 
