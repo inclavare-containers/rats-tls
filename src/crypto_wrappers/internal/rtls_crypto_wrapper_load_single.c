@@ -24,6 +24,7 @@ rats_tls_err_t rtls_enclave_crypto_post_init(const char *name, void *handle)
 {
 	unsigned int i = 0;
 	crypto_wrapper_opts_t *opts = NULL;
+
 	for (i = 0; i < registerd_crypto_wrapper_nums; ++i) {
 		opts = crypto_wrappers_opts[i];
 
@@ -38,6 +39,7 @@ rats_tls_err_t rtls_enclave_crypto_post_init(const char *name, void *handle)
 
 	if (opts->pre_init) {
 		crypto_wrapper_err_t err_cw = opts->pre_init();
+
 		if (err_cw != CRYPTO_WRAPPER_ERR_NONE) {
 			RTLS_ERR("failed on pre_init() of crypto wrapper '%s' %#x\n", name, err_cw);
 			return -RATS_TLS_ERR_INVALID;
