@@ -214,6 +214,20 @@ static uint64_t read_msr(uint32_t reg)
 }
 #endif
 
+static bool is_amd_cpu(void)
+{
+	int cpu_info[4] = { 0, 0, 0, 0 };
+
+	__cpuidex(cpu_info, 0, 0);
+
+	/* The twelve 8-bit ASCII character codes that form the
+	 * string "AuthenticAMD".
+	 */
+	return (cpu_info[1] == 0x68747541 &&
+		cpu_info[2] == 0x444d4163 &&
+		cpu_info[3] == 0x69746e65);
+}
+
 #define X86_CPUID_VENDOR_HygonGenuine_ebx 0x6f677948
 #define X86_CPUID_VENDOR_HygonGenuine_ecx 0x656e6975
 #define X86_CPUID_VENDOR_HygonGenuine_edx 0x6e65476e
@@ -244,13 +258,11 @@ bool is_snpguest_supported(void)
 bool is_sevguest_supported(void)
 {
 #ifndef SGX
-	if (!is_hygon_cpu()) {
-		uint64_t data = read_msr(SEV_STATUS_MSR);
-
-		return !!data || !!(data & (1 << SEV_ES_FLAG));
-	} else {
+	if (!is_amd_cpu())
 		return false;
-	}
+
+	uint64_t data = read_msr(SEV_STATUS_MSR);
+	return !!data || !!(data & (1 << SEV_ES_FLAG));
 #else
 	return false;
 #endif
