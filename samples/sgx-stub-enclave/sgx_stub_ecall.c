@@ -127,7 +127,7 @@ int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_typ
 	uint32_t addrlen_in = sizeof(c_addr);
 	uint32_t addrlen_out;
 	while (1) {
-		RTLS_INFO("Waiting for a connection ...\n");
+		RTLS_INFO("Waiting for a connection from client ...\n");
 
 		int64_t connd;
 		sgx_status = ocall_accept(&connd, sockfd, &c_addr, addrlen_in, &addrlen_out);
