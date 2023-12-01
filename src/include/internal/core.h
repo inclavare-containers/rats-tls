@@ -41,8 +41,6 @@ extern rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *);
 
 extern void rtls_exit(void);
 
-extern rats_tls_log_level_t rtls_loglevel_getenv(const char *name);
-
 extern rats_tls_err_t rtls_instance_init(const char *type, const char *realpath, void **handle);
 
 extern ssize_t rtls_write(int fd, const void *buf, size_t count);
