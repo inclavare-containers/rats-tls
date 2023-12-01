@@ -25,6 +25,8 @@ rtls_core_context_t global_core_context;
 /* The global log level used by log.h */
 rats_tls_log_level_t global_log_level = RATS_TLS_LOG_LEVEL_DEFAULT;
 
+extern rats_tls_log_level_t get_loglevel_env(const char *name);
+
 // clang-format off
 #ifdef SGX
 #define INSTANCE_NUM  (sizeof(enclave_instance_name) / sizeof(enclave_instance_name[0]))
@@ -40,7 +42,7 @@ void __attribute__((constructor)) librats_tls_init(void)
 {
 	RTLS_DEBUG("called\n");
 
-	global_log_level = rtls_loglevel_getenv("RATS_TLS_GLOBAL_LOG_LEVEL");
+	global_log_level = get_loglevel_env("RATS_TLS_GLOBAL_LOG_LEVEL");
 	if (global_log_level == (rats_tls_log_level_t)-1) {
 		RTLS_FATAL("failed to get log level from env\n");
 		rtls_exit();

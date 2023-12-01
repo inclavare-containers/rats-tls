@@ -41,41 +41,35 @@ void rtls_exit(void)
 	ocall_exit();
 }
 
-rats_tls_log_level_t rtls_loglevel_getenv(const char *name)
+rats_tls_log_level_t get_loglevel_env(const char *name)
 {
-	char *log_level_str = NULL;
-	size_t log_level_len = 32;
+	size_t log_level_len = 8;
 
-	log_level_str = calloc(1, log_level_len);
+	char *log_level_str = calloc(1, log_level_len);
 	if (!log_level_str) {
 		RTLS_ERR("failed to calloc log level string\n");
 		return -1;
 	}
 
 	ocall_getenv(name, log_level_str, log_level_len);
-	if (log_level_str) {
-		if (!strcmp(log_level_str, "debug") || !strcmp(log_level_str, "DEBUG")) {
-			free(log_level_str);
-			return RATS_TLS_LOG_LEVEL_DEBUG;
-		} else if (!strcmp(log_level_str, "info") || !strcmp(log_level_str, "INFO")) {
-			free(log_level_str);
-			return RATS_TLS_LOG_LEVEL_INFO;
-		} else if (!strcmp(log_level_str, "warn") || !strcmp(log_level_str, "WARN")) {
-			free(log_level_str);
-			return RATS_TLS_LOG_LEVEL_WARN;
-		} else if (!strcmp(log_level_str, "error") || !strcmp(log_level_str, "ERROR")) {
-			free(log_level_str);
-			return RATS_TLS_LOG_LEVEL_ERROR;
-		} else if (!strcmp(log_level_str, "fatal") || !strcmp(log_level_str, "FATAL")) {
-			free(log_level_str);
-			return RATS_TLS_LOG_LEVEL_FATAL;
-		} else if (!strcmp(log_level_str, "off") || !strcmp(log_level_str, "OFF")) {
-			free(log_level_str);
-			return RATS_TLS_LOG_LEVEL_NONE;
-		}
-	}
 
-	return RATS_TLS_LOG_LEVEL_DEFAULT;
+	rats_tls_log_level_t level = RATS_TLS_LOG_LEVEL_DEFAULT;
+	if (!strcmp(log_level_str, "debug") || !strcmp(log_level_str, "DEBUG"))
+		level = RATS_TLS_LOG_LEVEL_DEBUG;
+	else if (!strcmp(log_level_str, "info") || !strcmp(log_level_str, "INFO"))
+		level = RATS_TLS_LOG_LEVEL_INFO;
+	else if (!strcmp(log_level_str, "warn") || !strcmp(log_level_str, "WARN"))
+		level = RATS_TLS_LOG_LEVEL_WARN;
+	else if (!strcmp(log_level_str, "error") || !strcmp(log_level_str, "ERROR"))
+		level = RATS_TLS_LOG_LEVEL_ERROR;
+	else if (!strcmp(log_level_str, "fatal") || !strcmp(log_level_str, "FATAL"))
+		level = RATS_TLS_LOG_LEVEL_FATAL;
+	else if (!strcmp(log_level_str, "off") || !strcmp(log_level_str, "OFF"))
+		level = RATS_TLS_LOG_LEVEL_NONE;
+
+	free(log_level_str);
+
+	return level;
 }
 
 rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) const char *realpath,
@@ -203,23 +197,25 @@ void rtls_exit(void)
 	exit(EXIT_FAILURE);
 }
 
-rats_tls_log_level_t rtls_loglevel_getenv(const char *name)
+rats_tls_log_level_t get_loglevel_env(const char *name)
 {
-	char *log_level_str = log_level_str = getenv(name);
-	if (log_level_str) {
-		if (!strcasecmp(log_level_str, "debug"))
-			return RATS_TLS_LOG_LEVEL_DEBUG;
-		else if (!strcasecmp(log_level_str, "info"))
-			return RATS_TLS_LOG_LEVEL_INFO;
-		else if (!strcasecmp(log_level_str, "warn"))
-			return RATS_TLS_LOG_LEVEL_WARN;
-		else if (!strcasecmp(log_level_str, "error"))
-			return RATS_TLS_LOG_LEVEL_ERROR;
-		else if (!strcasecmp(log_level_str, "fatal"))
-			return RATS_TLS_LOG_LEVEL_FATAL;
-		else if (!strcasecmp(log_level_str, "off"))
-			return RATS_TLS_LOG_LEVEL_NONE;
-	}
+	char *log_level_str = getenv(name);
+
+	if (!log_level_str)
+		return RATS_TLS_LOG_LEVEL_DEFAULT;
+
+	if (!strcasecmp(log_level_str, "debug"))
+		return RATS_TLS_LOG_LEVEL_DEBUG;
+	else if (!strcasecmp(log_level_str, "info"))
+		return RATS_TLS_LOG_LEVEL_INFO;
+	else if (!strcasecmp(log_level_str, "warn"))
+		return RATS_TLS_LOG_LEVEL_WARN;
+	else if (!strcasecmp(log_level_str, "error"))
+		return RATS_TLS_LOG_LEVEL_ERROR;
+	else if (!strcasecmp(log_level_str, "fatal"))
+		return RATS_TLS_LOG_LEVEL_FATAL;
+	else if (!strcasecmp(log_level_str, "off"))
+		return RATS_TLS_LOG_LEVEL_NONE;
 
 	return RATS_TLS_LOG_LEVEL_DEFAULT;
 }
