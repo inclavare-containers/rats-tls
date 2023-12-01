@@ -5,8 +5,9 @@
  */
 
 #include <openssl/opensslv.h>
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+
 // clang-format off
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>

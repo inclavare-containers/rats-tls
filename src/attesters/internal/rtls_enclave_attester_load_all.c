@@ -46,14 +46,14 @@ rats_tls_err_t rtls_enclave_attester_load_all(void)
 		if (!strcmp(d_name, ".") || !strcmp(d_name, ".."))
 			continue;
 
-		if (strncmp(d_name + strlen(d_name) - strlen(PATTERN_SUFFIX),
-			    PATTERN_SUFFIX, strlen(PATTERN_SUFFIX)))
+		if (strncmp(d_name + strlen(d_name) - strlen(PATTERN_SUFFIX), PATTERN_SUFFIX,
+			    strlen(PATTERN_SUFFIX)))
 			continue;
 
 #ifdef OCCLUM
 		/* Occlum can't identify the d_type of the file, always return DT_UNKNOWN */
-		if (strncmp(d_name + strlen(d_name) - strlen(PATTERN_SUFFIX),
-			    PATTERN_SUFFIX, strlen(PATTERN_SUFFIX)) == 0) {
+		if (strncmp(d_name + strlen(d_name) - strlen(PATTERN_SUFFIX), PATTERN_SUFFIX,
+			    strlen(PATTERN_SUFFIX)) == 0) {
 #else
 		if (ptr->d_type == DT_REG || ptr->d_type == DT_LNK) {
 #endif
