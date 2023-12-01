@@ -110,13 +110,13 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 		.endorsements_buffer_size = 0,
 	};
 
-	/* Get DICE evidence buffer */
-	/* This check is a workaround for the nullattester.
-	 * Note: For nullattester, we do not generate an evidence_buffer. nor do we generate evidence extension.  */
-	if (evidence.type[0] == '\0') {
-		RTLS_WARN(
-			"evidence type is empty, which is normal only when you are using nullattester.\n");
-	} else {
+	/* Get DICE evidence buffer.
+	 * This check is a workaround for the nullattester.
+	 * Note: For nullattester, we do not generate an evidence_buffer, nor do we generate evidence extension.
+	 */
+	if (evidence.type[0] == '\0')
+		RTLS_WARN("No evidence in certificate due to using nullattester\n");
+	else {
 		enclave_attester_err_t d_ret = dice_generate_evidence_buffer_with_tag(
 			&evidence, claims_buffer, claims_buffer_size, &cert_info.evidence_buffer,
 			&cert_info.evidence_buffer_size);

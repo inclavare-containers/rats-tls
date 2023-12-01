@@ -87,7 +87,7 @@ tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
 	/* Get evidence struct and claims_buffer from evidence_buffer. */
 	if (!evidence_buffer) {
 		/* evidence_buffer is empty, which means that the other party is using a non-dice certificate or is using a nullattester */
-		RTLS_WARN("there is no evidence buffer in peer's certificate.\n");
+		RTLS_WARN("No evidence available in peer's certificate\n");
 		memset(&evidence, 0, sizeof(attestation_evidence_t));
 	} else {
 		enclave_verifier_err_t d_ret = dice_parse_evidence_buffer_with_tag(
