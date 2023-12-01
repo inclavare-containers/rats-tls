@@ -32,7 +32,7 @@ rats_tls_err_t rtls_verifier_select(rtls_core_context_t *ctx, const char *name,
 	RTLS_DEBUG("selecting the enclave verifier '%s' ...\n", name);
 
 	enclave_verifier_ctx_t *verifier_ctx = NULL;
-	for (unsigned int i = 0; i < registerd_enclave_verifier_nums; ++i) {
+	for (unsigned int i = 0; i < enclave_verifier_nums; ++i) {
 		RTLS_DEBUG("trying to match %s ...\n", enclave_verifiers_ctx[i]->opts->name);
 
 		if (name && strcmp(name, enclave_verifiers_ctx[i]->opts->name))
