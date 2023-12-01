@@ -41,20 +41,23 @@ rats_tls_err_t rtls_enclave_attester_load_all(void)
 	unsigned int total_loaded = 0;
 	rtls_dirent *ptr;
 	while ((rtls_readdir(dir, &ptr)) != 1) {
-		if (!strcmp(ptr->d_name, ".") || !strcmp(ptr->d_name, ".."))
+		const char *d_name = ptr->d_name;
+
+		if (!strcmp(d_name, ".") || !strcmp(d_name, ".."))
 			continue;
-		if (strncmp(ptr->d_name + strlen(ptr->d_name) - strlen(PATTERN_SUFFIX),
+
+		if (strncmp(d_name + strlen(d_name) - strlen(PATTERN_SUFFIX),
 			    PATTERN_SUFFIX, strlen(PATTERN_SUFFIX)))
 			continue;
 
 #ifdef OCCLUM
 		/* Occlum can't identify the d_type of the file, always return DT_UNKNOWN */
-		if (strncmp(ptr->d_name + strlen(ptr->d_name) - strlen(PATTERN_SUFFIX),
+		if (strncmp(d_name + strlen(d_name) - strlen(PATTERN_SUFFIX),
 			    PATTERN_SUFFIX, strlen(PATTERN_SUFFIX)) == 0) {
 #else
 		if (ptr->d_type == DT_REG || ptr->d_type == DT_LNK) {
 #endif
-			if (rtls_enclave_attester_load_single(ptr->d_name) == RATS_TLS_ERR_NONE)
+			if (rtls_enclave_attester_load_single(d_name) == RATS_TLS_ERR_NONE)
 				++total_loaded;
 		}
 	}
