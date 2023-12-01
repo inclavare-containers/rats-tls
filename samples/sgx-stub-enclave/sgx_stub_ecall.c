@@ -255,7 +255,7 @@ int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_typ
 	if (verdictd)
 		msg = "{ \"command\": \"echo\", \"data\": \"Hello and welcome to RATS-TLS!\\n\" }";
 	else
-		msg = "Hello and welcome to RATS-TLS!\n";
+		msg = "\033[94mHello and welcome to RATS-TLS!\033[0m\n";
 
 	size_t len = strlen(msg);
 	ret = rats_tls_transmit(handle, (void *)msg, &len);
@@ -299,7 +299,7 @@ int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_typ
 	}
 
 	if (verdictd)
-		msg = "Hello and welcome to RATS-TLS!\n";
+		msg = "\033[94mHello and welcome to RATS-TLS!\033[0m\n";
 
 	/* Sanity check whether the response is expected */
 	if (strcmp(msg, buf)) {
