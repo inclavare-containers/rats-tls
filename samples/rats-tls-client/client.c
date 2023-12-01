@@ -168,7 +168,7 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 	if (verdictd)
 		msg = "{ \"command\": \"echo\", \"data\": \"Hello and welcome to RATS-TLS!\\n\" }";
 	else
-		msg = "Hello and welcome to RATS-TLS!\n";
+		msg = "\033[91mHello and welcome to RATS-TLS!\033[0m\n";
 
 	size_t len = strlen(msg);
 	ret = rats_tls_transmit(handle, (void *)msg, &len);
@@ -215,7 +215,7 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 	}
 
 	if (verdictd)
-		msg = "Hello and welcome to RATS-TLS!\n";
+		msg = "\033[91mHello and welcome to RATS-TLS!\033[0m\n";
 
 	/* Sanity check whether the response is expected */
 	if (strcmp(msg, buf)) {
@@ -240,11 +240,11 @@ err:
 int main(int argc, char **argv)
 {
 #ifdef SGX
-	printf("    - Welcome to RATS-TLS sample client program for Intel SGX\n");
+	printf("    \033[91mWelcome to RATS-TLS sample client program for Intel SGX\033[0m\n");
 #elif defined(OCCLUM)
-	printf("    - Welcome to RATS-TLS sample client program for Occlum\n");
+	printf("    \033[91mWelcome to RATS-TLS sample client program for Occlum SGX\033[0m\n");
 #else
-	printf("    - Welcome to RATS-TLS sample client program\n");
+	printf("    \033[91mWelcome to RATS-TLS sample client program\033[0m\n");
 #endif
 
 	char *const short_options = "a:v:t:c:mel:i:p:DEh";

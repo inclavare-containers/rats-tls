@@ -63,7 +63,7 @@ typedef struct {
 
 #define SGXIOC_SELF_TARGET      _IOR('s', 3, sgx_target_info_t)
 #define SGXIOC_CREATE_REPORT    _IOWR('s', 4, sgxioc_create_report_arg_t)
-#define RATS_TLS_HELLO       "Hello and welcome to RATS-TLS!\n"
+#define RATS_TLS_HELLO          "\033[94mHello and welcome to RATS-TLS!\033[0m\n"
 
 static int sgx_create_report(sgx_report_t *report)
 {
@@ -306,11 +306,11 @@ err:
 int main(int argc, char **argv)
 {
 #ifdef SGX
-	printf("    - Welcome to RATS-TLS sample server program for Intel SGX\n");
+	printf("    \033[94mWelcome to RATS-TLS sample server program for Intel SGX\033[0m\n");
 #elif defined(OCCLUM)
-	printf("    - Welcome to RATS-TLS sample server program for Occlum\n");
+	printf("    \033[94mWelcome to RATS-TLS sample server program for Occlum SGX\033[0m\n");
 #else
-	printf("    - Welcome to RATS-TLS sample server program\n");
+	printf("    \033[94mWelcome to RATS-TLS sample server program\033[0m\n");
 #endif
 
 	char *const short_options = "a:v:t:c:mel:i:p:Dh";
