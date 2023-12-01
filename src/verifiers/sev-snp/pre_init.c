@@ -7,31 +7,28 @@
 #include <rats-tls/log.h>
 #include <rats-tls/verifier.h>
 
-#define TOOL_NUM  3
-#define TOOL_NAME 10
+#define TOOL_NUM 3
+#define TOOL_BUF 16
 
 enclave_verifier_err_t sev_snp_verifier_pre_init(void)
 {
 	RTLS_DEBUG("called\n");
 
-	enclave_verifier_err_t err = ENCLAVE_VERIFIER_ERR_NONE;
-
 	/* These tools are used to verify SEV-SNP report */
-	char tools_name[TOOL_NUM][TOOL_NAME] = { "openssl", "wget", "csplit" };
-	char cmdline_str[50] = {
-		0,
-	};
+	const char names[TOOL_NUM][TOOL_BUF] = { "openssl", "wget", "csplit" };
+	const char parameters[TOOL_NUM][TOOL_BUF] = { "version", "-V", "--version" };
 
-	for (int i = 0; i < TOOL_NUM; i++) {
-		int count = snprintf(cmdline_str, sizeof(cmdline_str),
-				     "which %s 1> /dev/null 2> /dev/null", tools_name[i]);
-		cmdline_str[count] = '\0';
+	for (unsigned int i = 0; i < TOOL_NUM; ++i) {
+		char cmdline_str[64];
 
-		if (system(cmdline_str) != 0) {
-			RTLS_ERR("please install tool %s\n", tools_name[i]);
-			err = -ENCLAVE_VERIFIER_ERR_NO_TOOL;
+		snprintf(cmdline_str, sizeof(cmdline_str), "%s %s >/dev/null 2>&1", names[i],
+			 parameters[i]);
+
+		if (system(cmdline_str)) {
+			RTLS_ERR("Please install %s for sev_snp verifier\n", names[i]);
+			return -ENCLAVE_VERIFIER_ERR_NO_TOOL;
 		}
 	}
 
-	return err;
+	return ENCLAVE_VERIFIER_ERR_NONE;
 }

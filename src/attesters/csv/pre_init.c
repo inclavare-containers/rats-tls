@@ -11,13 +11,10 @@ enclave_attester_err_t csv_attester_pre_init(void)
 {
 	RTLS_DEBUG("called\n");
 
-	enclave_attester_err_t err = ENCLAVE_ATTESTER_ERR_NONE;
+	if (!system("wget -V >/dev/null 2>&1"))
+		return ENCLAVE_ATTESTER_ERR_NONE;
 
-	char *cmdline_str = "which wget 1> /dev/null 2> /dev/null";
-	if (system(cmdline_str) != 0) {
-		RTLS_ERR("please install wget for csv attest\n");
-		err = -ENCLAVE_ATTESTER_ERR_NO_TOOL;
-	}
+	RTLS_ERR("Please install wget for csv attester\n");
 
-	return err;
+	return -ENCLAVE_ATTESTER_ERR_NO_TOOL;
 }

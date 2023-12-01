@@ -11,13 +11,10 @@ enclave_verifier_err_t sev_verifier_pre_init(void)
 {
 	RTLS_DEBUG("called\n");
 
-	enclave_verifier_err_t err = ENCLAVE_VERIFIER_ERR_NONE;
+	if (!system("wget -V >/dev/null 2>&1"))
+		return ENCLAVE_VERIFIER_ERR_NONE;
 
-	char *cmdline_str = "which wget 1> /dev/null 2> /dev/null";
-	if (system(cmdline_str) != 0) {
-		RTLS_ERR("please install wget for sev(-es) verify\n");
-		err = -ENCLAVE_VERIFIER_ERR_NO_TOOL;
-	}
+	RTLS_ERR("Please install wget for sev verifier\n");
 
-	return err;
+	return -ENCLAVE_VERIFIER_ERR_NO_TOOL;
 }
