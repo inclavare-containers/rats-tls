@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <internal/cpu.h>
 #include <rats-tls/attester.h>
 #include <rats-tls/log.h>
 
