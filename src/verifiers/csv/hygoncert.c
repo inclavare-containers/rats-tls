@@ -769,7 +769,7 @@ static void hygon_to_sm2_signature(hygon_signature_t *src_sig, sm2_signature_t *
 static void hygon_to_sm2_userid(hygon_pubkey_t *pubkey, sm2_userid_t *userid)
 {
 	userid->len = (pubkey->userid_len > (256 - sizeof(uint16_t))) ? (256 - sizeof(uint16_t)) :
-									      pubkey->userid_len;
+									pubkey->userid_len;
 
 	memcpy(userid->uid, (uint8_t *)pubkey->userid, userid->len);
 }

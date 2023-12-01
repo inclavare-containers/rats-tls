@@ -239,7 +239,8 @@ static int collect_attestation_evidence(uint8_t *hash, uint32_t hash_len,
 	// clang-fomat off
 	/* Prepare user defined data (challenge and mnonce) */
 	memcpy(user_data->data, hash,
-	       hash_len <= CSV_ATTESTATION_USER_DATA_SIZE ? hash_len : CSV_ATTESTATION_USER_DATA_SIZE);
+	       hash_len <= CSV_ATTESTATION_USER_DATA_SIZE ? hash_len :
+							    CSV_ATTESTATION_USER_DATA_SIZE);
 	// clang-format on
 
 	gen_random_bytes(user_data->mnonce, CSV_ATTESTATION_MNONCE_SIZE);

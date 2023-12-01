@@ -227,8 +227,8 @@ static bool validate_signature(const sev_cert *child_cert, const sev_cert *paren
 			if (RSA_verify_PKCS1_PSS(rsa_pub_key, hash,
 						 (parent_cert->pub_key_algo ==
 						  SEV_SIG_ALGO_RSA_SHA256) ?
-							       EVP_sha256() :
-							       EVP_sha384(),
+							 EVP_sha256() :
+							 EVP_sha384(),
 						 decrypted, -2) != 1) {
 				RSA_free(rsa_pub_key);
 				continue;
