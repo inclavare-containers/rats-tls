@@ -240,11 +240,11 @@ err:
 int main(int argc, char **argv)
 {
 #ifdef SGX
-	printf("    \033[91mWelcome to RATS-TLS sample client program for Intel SGX\033[0m\n");
+	printf("    \033[91mWelcome to RATS-TLS sample client for Intel SGX\033[0m\n");
 #elif defined(OCCLUM)
-	printf("    \033[91mWelcome to RATS-TLS sample client program for Occlum SGX\033[0m\n");
+	printf("    \033[91mWelcome to RATS-TLS sample client for Occlum SGX\033[0m\n");
 #else
-	printf("    \033[91mWelcome to RATS-TLS sample client program\033[0m\n");
+	printf("    \033[91mWelcome to RATS-TLS sample client\033[0m\n");
 #endif
 
 	char *const short_options = "a:v:t:c:mel:i:p:DEh";

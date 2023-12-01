@@ -229,7 +229,7 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 	}
 
 	while (1) {
-		RTLS_INFO("Waiting for a connection ...\n");
+		RTLS_INFO("Waiting for a connection from client ...\n");
 
 		/* Accept client connections */
 		struct sockaddr_in c_addr;
@@ -306,11 +306,11 @@ err:
 int main(int argc, char **argv)
 {
 #ifdef SGX
-	printf("    \033[94mWelcome to RATS-TLS sample server program for Intel SGX\033[0m\n");
+	printf("    \033[94mWelcome to RATS-TLS sample server for Intel SGX\033[0m\n");
 #elif defined(OCCLUM)
-	printf("    \033[94mWelcome to RATS-TLS sample server program for Occlum SGX\033[0m\n");
+	printf("    \033[94mWelcome to RATS-TLS sample server for Occlum SGX\033[0m\n");
 #else
-	printf("    \033[94mWelcome to RATS-TLS sample server program\033[0m\n");
+	printf("    \033[94mWelcome to RATS-TLS sample server\033[0m\n");
 #endif
 
 	char *const short_options = "a:v:t:c:mel:i:p:Dh";
