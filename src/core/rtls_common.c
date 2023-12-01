@@ -44,8 +44,8 @@ void rtls_exit(void)
 rats_tls_log_level_t get_loglevel_env(const char *name)
 {
 	size_t log_level_len = 8;
-
 	char *log_level_str = calloc(1, log_level_len);
+
 	if (!log_level_str) {
 		RTLS_ERR("failed to calloc log level string\n");
 		return -1;
@@ -140,9 +140,9 @@ ssize_t rtls_write(int fd, const void *buf, size_t count)
 {
 	ssize_t rc;
 	int sgx_status = ocall_write(&rc, fd, buf, count);
-	if (SGX_SUCCESS != sgx_status) {
+
+	if (SGX_SUCCESS != sgx_status)
 		RTLS_ERR("sgx failed to write data, sgx status: 0x%04x\n", sgx_status);
-	}
 
 	return rc;
 }
@@ -151,9 +151,9 @@ ssize_t rtls_read(int fd, void *buf, size_t count)
 {
 	ssize_t rc;
 	int sgx_status = ocall_read(&rc, fd, buf, count);
-	if (SGX_SUCCESS != sgx_status) {
+
+	if (SGX_SUCCESS != sgx_status)
 		RTLS_ERR("sgx failed to read data, sgx status: 0x%04x\n", sgx_status);
-	}
 
 	return rc;
 }
@@ -161,24 +161,24 @@ ssize_t rtls_read(int fd, void *buf, size_t count)
 uint64_t rtls_opendir(const char *name)
 {
 	uint64_t dir;
-
 	int sgx_status = ocall_opendir(&dir, name);
-	if (sgx_status != SGX_SUCCESS) {
+
+	if (sgx_status != SGX_SUCCESS)
 		RTLS_ERR("sgx failed to open %s, sgx status: 0x%04x\n", name, sgx_status);
-	}
 
 	return dir;
 }
 
 int rtls_readdir(uint64_t dirp, rtls_dirent **ptr)
 {
-	int ret = 0;
-
 	*ptr = (rtls_dirent *)calloc(1, sizeof(rtls_dirent));
+
 	if (!ptr) {
 		RTLS_ERR("failed to calloc memory in rtls_readdir\n");
 		return -1;
 	}
+
+	int ret = 0;
 	ocall_readdir(&ret, dirp, *ptr);
 
 	return ret;
@@ -187,6 +187,7 @@ int rtls_readdir(uint64_t dirp, rtls_dirent **ptr)
 int rtls_closedir(uint64_t dir)
 {
 	int ret = 0;
+
 	ocall_closedir(&ret, dir);
 
 	return ret;
@@ -224,6 +225,7 @@ rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) cons
 				  __attribute__((unused)) void **handle)
 {
 	*handle = dlopen(realpath, RTLD_LAZY);
+
 	if (*handle == NULL) {
 		RTLS_ERR("failed on dlopen(): %s\n", dlerror());
 		return -RATS_TLS_ERR_DLOPEN;
@@ -234,26 +236,17 @@ rats_tls_err_t rtls_instance_init(const char *name, __attribute__((unused)) cons
 
 ssize_t rtls_write(int fd, const void *buf, size_t count)
 {
-	ssize_t rc;
-	rc = write(fd, buf, count);
-
-	return rc;
+	return write(fd, buf, count);
 }
 
 ssize_t rtls_read(int fd, void *buf, size_t count)
 {
-	ssize_t rc;
-	rc = read(fd, buf, count);
-
-	return rc;
+	return read(fd, buf, count);
 }
 
 uint64_t rtls_opendir(const char *name)
 {
-	uint64_t dir;
-	dir = (uint64_t)opendir(name);
-
-	return dir;
+	return (uint64_t)opendir(name);
 }
 
 int rtls_readdir(uint64_t dirp, rtls_dirent **ptr)
@@ -261,7 +254,7 @@ int rtls_readdir(uint64_t dirp, rtls_dirent **ptr)
 	int ret = 0;
 
 	*ptr = readdir((DIR *)dirp);
-	if (*ptr == NULL)
+	if (!*ptr)
 		ret = 1;
 
 	return ret;
