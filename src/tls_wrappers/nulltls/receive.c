@@ -6,8 +6,8 @@
 
 #include <unistd.h>
 #include <rats-tls/log.h>
-#include <internal/core.h>
 #include <rats-tls/tls_wrapper.h>
+#include "internal/core.h"
 
 tls_wrapper_err_t nulltls_receive(tls_wrapper_ctx_t *ctx, void *buf, size_t *buf_size)
 {

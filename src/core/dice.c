@@ -7,10 +7,10 @@
 #include <string.h>
 #include <rats-tls/err.h>
 #include <rats-tls/log.h>
-#include <internal/dice.h>
 #include <rats-tls/cert.h>
 #include <rats-tls/endorsement.h>
 #include <cbor.h>
+#include "internal/dice.h"
 
 uint64_t tag_of_evidence_type(const char *type)
 {

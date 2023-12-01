@@ -9,9 +9,9 @@
 #include <rats-tls/log.h>
 #include <rats-tls/err.h>
 #include <rats-tls/tls_wrapper.h>
-#include <internal/core.h>
-#include <internal/dice.h>
 #include "openssl.h"
+#include "internal/core.h"
+#include "internal/dice.h"
 
 static int rtls_memcpy_s(void *dst, uint32_t dst_size, const void *src, uint32_t num_bytes)
 {
