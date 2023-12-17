@@ -27,6 +27,20 @@ cmake -DRATS_TLS_BUILD_MODE="host" -DBUILD_SAMPLES=on -DBUILD_FUZZ=on -H. -Bbuil
 make -C build install
 ```
 
+For SGX mode, please run the following command.
+
+```shell
+cmake -DRATS_TLS_BUILD_MODE="sgx" -DBUILD_SAMPLES=off  -DBUILD_FUZZ=on -H. -Bbuild 
+make -C build install
+```
+
+Attention! If you run fuzz host program before, you should clean the environment and vice versa. 
+
+```bash
+make -C build clean # clean the environment
+make -C build uninstall
+```
+
 # FUZZ
 
 ## rats_tls_init API
@@ -65,4 +79,17 @@ base64 /dev/urandom | head -c 1500000 > c1
 cd ..
 ./fuzz_server &
 ./fuzz_transmit -max_len=1500000 -len_control=0  corpus # len_control=0 means try genarating input with size up to max_len 
+```
+
+# FUZZ in SGX mode
+
+We integrate the fuzz program for these apis into one program `fuzz_sgx_mode`, start the `fuzz_server` first, and then run `fuzz_sgx_mode` to start fuzz.
+
+```shell
+cd /usr/share/rats_tls/fuzz/
+mkdir corpus && cd corpus  # create corpus dir and fill in random string
+base64 /dev/urandom | head -c 1500000 > c1
+cd ..
+./fuzz_server &
+./fuzz_sgx_mode -max_len=1500000 -len_control=0  corpus 
 ```
