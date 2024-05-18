@@ -133,7 +133,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
 					if (connect(sockfd, (struct sockaddr *)&s_addr,
 						    sizeof(s_addr)) == -1) {
-						// free memory
 						RTLS_ERR("Failed to connect to server \n");
 						for (int c = 0; c < CUSTOM_CLAIMS_SIZE; c++) {
 							free(custom_claims[c].name);
