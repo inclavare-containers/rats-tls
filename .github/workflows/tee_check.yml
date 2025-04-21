@@ -7,6 +7,7 @@ jobs:
       strategy:
         matrix:
           tag: [anolis8.6, ubuntu20.04]
+        fail-fast: false
 
       # if only specify a container image, can omit the `image` keyword 
       # get the image from the docker hub 
@@ -33,9 +34,9 @@ jobs:
 
         # install dependencies
         - if: ${{matrix.tag == 'ubuntu20.04'}}
-          run: apt-get install lsof
+          run: apt-get update && apt-get install lsof
         - if: ${{matrix.tag == 'anolis8.6'}}
-          run: yum install lsof -y
+          run: yum makecache && yum install lsof -y
 
         - id: rand_port_1
           uses: ./.github/actions/generate-random-port

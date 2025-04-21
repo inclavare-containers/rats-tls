@@ -8,6 +8,7 @@ jobs:
     strategy:
       matrix:
         tag: [anolis8.6, ubuntu20.04]
+      fail-fast: false
 
     container: runetest/compilation-testing:${{ matrix.tag }}
 
