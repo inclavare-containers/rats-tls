@@ -31,7 +31,7 @@ static int snp_get_report(const uint8_t *data, size_t data_size, snp_attestation
 	struct snp_report_req req;
 	struct snp_report_resp resp;
 	struct snp_guest_request_ioctl guest_req;
-	snp_msg_report_rsp_t *report_resp = (struct msg_report_resp *)&resp.data;
+	snp_msg_report_rsp_t *report_resp = (snp_msg_report_rsp_t *)&resp.data;
 
 	if (data && (data_size > sizeof(req.user_data) || data_size == 0) || !data || !report)
 		return -1;
@@ -59,7 +59,7 @@ static int snp_get_report(const uint8_t *data, size_t data_size, snp_attestation
 	/* Issue the guest request IOCTL */
 	if (ioctl(fd, SNP_GET_REPORT, &guest_req) == -1) {
 		RTLS_ERR("failed to issue SNP_GET_REPORT ioctl, error %llu\n",
-GUEST_REQUEST_ERROR(			 guest_req));
+			GUEST_REQUEST_ERROR(guest_req));
 		goto out_close;
 	}
 
