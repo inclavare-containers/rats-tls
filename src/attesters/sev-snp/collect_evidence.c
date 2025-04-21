@@ -19,6 +19,13 @@
 
 #define SEV_GUEST_DEVICE "/dev/sev-guest"
 
+// https://github.com/torvalds/linux/commit/0144e3b85d7b42e8a4cda991c0e81f131897457a
+#ifdef SNP_GUEST_FW_ERR_MASK
+#define GUEST_REQUEST_ERROR(guest_req) (guest_req.exitinfo2)
+#else
+#define GUEST_REQUEST_ERROR(guest_req) (guest_req.fw_err)
+#endif
+
 static int snp_get_report(const uint8_t *data, size_t data_size, snp_attestation_report_t *report)
 {
 	struct snp_report_req req;
@@ -51,8 +58,8 @@ static int snp_get_report(const uint8_t *data, size_t data_size, snp_attestation
 
 	/* Issue the guest request IOCTL */
 	if (ioctl(fd, SNP_GET_REPORT, &guest_req) == -1) {
-		RTLS_ERR("failed to issue SNP_GET_REPORT ioctl, firmware error %llu\n",
-			 guest_req.fw_err);
+		RTLS_ERR("failed to issue SNP_GET_REPORT ioctl, error %llu\n",
+GUEST_REQUEST_ERROR(			 guest_req));
 		goto out_close;
 	}
 
