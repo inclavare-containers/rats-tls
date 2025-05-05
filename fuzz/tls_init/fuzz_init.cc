@@ -17,6 +17,8 @@ extern "C" {
 
 #define CUSTOM_CLAIMS_SIZE 10
 
+rats_tls_log_level_t global_log_level = RATS_TLS_LOG_LEVEL_DEFAULT;
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
 	rats_tls_conf_t conf; // consume 192 bytes
@@ -107,6 +109,5 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 			}
 		}
 	}
-
 	return 0;
 }

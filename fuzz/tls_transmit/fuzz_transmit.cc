@@ -86,14 +86,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 					conf.api_version = 0;
 					conf.flags = fuzzed_data.ConsumeIntegral<long>();
 
-					strcpy(conf.attester_type, "nullattester");
-					strcpy(conf.verifier_type, "nullverifier");
-					strcpy(conf.tls_type, "nulltls");
-					strcpy(conf.crypto_type, "nullcrypto");
+					strcpy(conf.attester_type, attester_types[i]);
+					strcpy(conf.verifier_type, verifier_types[j]);
+					strcpy(conf.tls_type, tls_types[k]);
+					strcpy(conf.crypto_type, crypto_types[l]);
 
 					int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 					if (sockfd < 0) {
-						RTLS_ERR("Socked create failed \n");
+						RTLS_ERR("socked create failed \n");
 						close(sockfd);
 						continue;
 					}
@@ -152,7 +152,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 						for (int c = 0; c < CUSTOM_CLAIMS_SIZE; c++) {
 							free(custom_claims[c].name);
 						}
-
 						continue;
 					}
 

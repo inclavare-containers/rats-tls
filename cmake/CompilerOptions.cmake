@@ -12,6 +12,10 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2")
 endif()
 
+if((BUILD_FUZZ) AND (SGX))
+    string(REPLACE "-std=gnu11" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+endif()
+
 # SGX mode
 if(SGX)
     if(SGX_HW)
@@ -58,6 +62,11 @@ if(SGX)
 
     set(SGX_COMMON_CFLAGS "${SGX_COMMON_FLAGS} -Wstrict-prototypes -Wunsuffixed-float-constants -Wno-implicit-function-declaration -std=c11")
     set(SGX_COMMON_CXXFLAGS "${SGX_COMMON_FLAGS} -Wnon-virtual-dtor -std=c++11")
+    if((BUILD_FUZZ) AND (SGX))
+        string(REPLACE "-std=c11" "" SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}")
+        string(REPLACE "-Wunsuffixed-float-constants" "" SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}")
+        string(REPLACE "-std=c++11" "" SGX_COMMON_CXXFLAGS "${SGX_COMMON_CXXFLAGS}")
+    endif()
 
     set(ENCLAVE_INCLUDES "${SGX_INCLUDE}" "${SGX_TLIBC_INCLUDE}" "${SGX_LIBCXX_INCLUDE}" "/usr/include")
     set(ENCLAVE_C_FLAGS "${CMAKE_C_FLAGS} ${SGX_COMMON_CFLAGS} ${ENCLAVE_COMMON_FLAGS}")
@@ -67,3 +76,4 @@ if(SGX)
     set(APP_C_FLAGS "${CMAKE_C_FLAGS} ${SGX_COMMON_CFLAGS} ${APP_COMMON_FLAGS}")
     set(APP_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SGX_COMMON_CXXFLAGS} ${APP_COMMON_FLAGS}")
 endif()
+
