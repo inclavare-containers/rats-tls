@@ -298,10 +298,14 @@ enclave_verifier_err_t tdx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx,
 		RTLS_DEBUG("Using TDX quote v4 structure, header size: %zu, report_body offset: %zu\n",
 			   sizeof(tdx_quote_header_t), offsetof(tdx_quote_t, report_body));
 	} else if (quote_version == 5) {
-		tdx_quote_v5_t *quote = (tdx_quote_v5_t *)(evidence->tdx.quote);
-		report_data_ptr = quote->report_body.report_data;
-		RTLS_DEBUG("Using TDX quote v5 structure, header size: %zu, report_body offset: %zu\n",
-			   sizeof(tdx_quote_header_v5_t), offsetof(tdx_quote_v5_t, report_body));
+		/* For TDX quote v5, use the fixed header size with padding.
+		 * The size field in the header is unreliable (often 0), so we use TDX_QUOTE_V5_HEADER_SIZE.
+		 */
+		size_t report_data_offset_in_body = offsetof(tdx_report_body_t, report_data);
+		report_data_ptr = evidence->tdx.quote + TDX_QUOTE_V5_HEADER_SIZE + report_data_offset_in_body;
+		
+		RTLS_DEBUG("Using TDX quote v5 structure, header size: %d, report_data offset: %zu\n",
+			   TDX_QUOTE_V5_HEADER_SIZE, TDX_QUOTE_V5_HEADER_SIZE + report_data_offset_in_body);
 	} else {
 		RTLS_ERR("Unsupported TDX quote version: %d\n", quote_version);
 		return ENCLAVE_VERIFIER_ERR_INVALID;
