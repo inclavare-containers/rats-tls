@@ -115,7 +115,7 @@ int evidence_from_raw(const uint8_t *data, size_t size, uint64_t tag,
 			memcpy(evidence->type, "sgx_ecdsa", sizeof("sgx_ecdsa"));
 			memcpy((uint8_t *)&evidence->ecdsa.quote, data, size);
 			evidence->ecdsa.quote_len = size;
-		} else if (header->version == 4 && header->tee_type == 0x81) {
+		} else if ((header->version == 4 || header->version == 5) && header->tee_type == 0x81) {
 			memcpy(evidence->type, "tdx_ecdsa", sizeof("tdx_ecdsa"));
 			memcpy((uint8_t *)&evidence->tdx.quote, data, size);
 			evidence->tdx.quote_len = size;
