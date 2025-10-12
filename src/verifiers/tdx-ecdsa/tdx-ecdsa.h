@@ -29,7 +29,10 @@ typedef struct {
 	uint8_t user_data[20];
 } __attribute__((packed)) tdx_quote_header_t;
 
-/* V5 header has additional size field (2 bytes for size, 2 bytes reserved) */
+/* V5 header has additional size field (2 bytes for size, 2 bytes reserved) 
+ * Note: The actual v5 header in quotes is 54 bytes due to 2 bytes of padding
+ * after this structure. The size field is often 0 and should not be relied upon.
+ */
 typedef struct {
 	uint16_t version;
 	uint16_t attestation_key_type;
@@ -41,6 +44,9 @@ typedef struct {
 	uint8_t qe_vendor_id[16];
 	uint8_t user_data[20];
 } __attribute__((packed)) tdx_quote_header_v5_t;
+
+/* TDX quote v5 actual header size including padding */
+#define TDX_QUOTE_V5_HEADER_SIZE 54
 
 typedef struct {
 	uint8_t tee_tcb_svn[16];
