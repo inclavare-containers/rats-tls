@@ -286,9 +286,34 @@ enclave_verifier_err_t tdx_ecdsa_verify_evidence(enclave_verifier_ctx_t *ctx,
 
 	enclave_verifier_err_t err = ENCLAVE_VERIFIER_ERR_UNKNOWN;
 
-	/* First verify the hash value */
-	if (memcmp(hash, ((tdx_quote_t *)(evidence->tdx.quote))->report_body.report_data,
-		   hash_len) != 0) {
+	/* First verify the hash value - handle both v4 and v5 quote structures */
+	uint16_t quote_version = *((uint16_t *)(evidence->tdx.quote));
+	uint8_t *report_data_ptr = NULL;
+
+	RTLS_DEBUG("TDX quote version detected: %d, quote_len: %u\n", quote_version, evidence->tdx.quote_len);
+
+	if (quote_version == 4) {
+		tdx_quote_t *quote = (tdx_quote_t *)(evidence->tdx.quote);
+		report_data_ptr = quote->report_body.report_data;
+		RTLS_DEBUG("Using TDX quote v4 structure, header size: %zu, report_body offset: %zu\n",
+			   sizeof(tdx_quote_header_t), offsetof(tdx_quote_t, report_body));
+	} else if (quote_version == 5) {
+		tdx_quote_v5_t *quote = (tdx_quote_v5_t *)(evidence->tdx.quote);
+		report_data_ptr = quote->report_body.report_data;
+		RTLS_DEBUG("Using TDX quote v5 structure, header size: %zu, report_body offset: %zu\n",
+			   sizeof(tdx_quote_header_v5_t), offsetof(tdx_quote_v5_t, report_body));
+	} else {
+		RTLS_ERR("Unsupported TDX quote version: %d\n", quote_version);
+		return ENCLAVE_VERIFIER_ERR_INVALID;
+	}
+
+	RTLS_DEBUG("Comparing hash (len=%u): expected first 8 bytes: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+		   hash_len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7]);
+	RTLS_DEBUG("Report data first 8 bytes: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+		   report_data_ptr[0], report_data_ptr[1], report_data_ptr[2], report_data_ptr[3],
+		   report_data_ptr[4], report_data_ptr[5], report_data_ptr[6], report_data_ptr[7]);
+
+	if (memcmp(hash, report_data_ptr, hash_len) != 0) {
 		RTLS_ERR("unmatched hash value in evidence.\n");
 		return ENCLAVE_VERIFIER_ERR_INVALID;
 	}

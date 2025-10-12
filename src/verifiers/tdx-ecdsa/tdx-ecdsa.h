@@ -18,6 +18,7 @@ typedef struct {
 
 /* TDX attestation specification */
 
+/* Common header for v4 and v5 */
 typedef struct {
 	uint16_t version;
 	uint16_t attestation_key_type;
@@ -27,6 +28,19 @@ typedef struct {
 	uint8_t qe_vendor_id[16];
 	uint8_t user_data[20];
 } __attribute__((packed)) tdx_quote_header_t;
+
+/* V5 header has additional size field (2 bytes for size, 2 bytes reserved) */
+typedef struct {
+	uint16_t version;
+	uint16_t attestation_key_type;
+	uint32_t tee_type;
+	uint16_t size;
+	uint16_t reserved;
+	uint16_t qe_svn;
+	uint16_t pce_svn;
+	uint8_t qe_vendor_id[16];
+	uint8_t user_data[20];
+} __attribute__((packed)) tdx_quote_header_v5_t;
 
 typedef struct {
 	uint8_t tee_tcb_svn[16];
@@ -48,5 +62,10 @@ typedef struct {
 	tdx_quote_header_t header;
 	tdx_report_body_t report_body;
 } __attribute__((__packed__)) tdx_quote_t;
+
+typedef struct {
+	tdx_quote_header_v5_t header;
+	tdx_report_body_t report_body;
+} __attribute__((__packed__)) tdx_quote_v5_t;
 
 #endif /* _TDX_ECDSA_H */
