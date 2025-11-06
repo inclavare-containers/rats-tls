@@ -2,7 +2,10 @@ project(fuzz_transmit CXX)
 
 set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-set(CMAKE_CXX_FLAGS "-fsanitize=address,fuzzer -g -fPIE ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-fsanitize=address,fuzzer -g ${CMAKE_CXX_FLAGS}")
+if(NOT SGX)
+    set(CMAKE_CXX_FLAGS "-fPIE ${CMAKE_CXX_FLAGS}")
+endif()
 
 set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include/rats-tls
