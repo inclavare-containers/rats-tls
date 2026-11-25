@@ -116,13 +116,33 @@ err:
 	return ret;
 }
 
+static bool set_x509_name_entries(X509_NAME *name, const cert_subject_t *entry)
+{
+	if (!name || !entry)
+		return false;
+
+	if (entry->organization &&
+	    !X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, entry->organization, -1, -1, 0))
+		return false;
+
+	if (entry->organization_unit &&
+	    !X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_ASC, entry->organization_unit, -1, -1, 0))
+		return false;
+
+	if (entry->common_name &&
+	    !X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, entry->common_name, -1, -1, 0))
+		return false;
+
+	return true;
+}
+
 crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
 				      rats_tls_cert_info_t *cert_info)
 {
 	openssl_ctx *octx = NULL;
-	cert_subject_t *subject;
 	X509 *cert = NULL;
 	X509_NAME *name;
+	X509_NAME *issuer_name = NULL;
 	EVP_PKEY *pkey = NULL;
 	int len;
 	int ret;
@@ -179,12 +199,23 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 	if (!name)
 		goto err;
 
-	subject = &cert_info->subject;
-	X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, subject->organization, -1, -1, 0);
-	X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_ASC, subject->organization_unit, -1, -1, 0);
-	X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, subject->common_name, -1, -1, 0);
-	if (!X509_set_issuer_name(cert, name))
+	ret = -CRYPTO_WRAPPER_ERR_CERT;
+	if (!set_x509_name_entries(name, &cert_info->subject))
 		goto err;
+
+	/* issuer name (defaults to subject if issuer fields are unset) */
+	if (cert_info->issuer.organization || cert_info->issuer.organization_unit ||
+	    cert_info->issuer.common_name) {
+		issuer_name = X509_NAME_new();
+		if (!issuer_name || !set_x509_name_entries(issuer_name, &cert_info->issuer) ||
+		    !X509_set_issuer_name(cert, issuer_name))
+			goto err;
+		X509_NAME_free(issuer_name);
+		issuer_name = NULL;
+	} else {
+		if (!X509_set_issuer_name(cert, name))
+			goto err;
+	}
 
 	ret = -CRYPTO_WRAPPER_ERR_CERT_EXTENSION;
 
@@ -236,6 +267,9 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 err:
 	if (ret != CRYPTO_WRAPPER_ERR_NONE)
 		RTLS_DEBUG("failed to generate certificate %d\n", ret);
+
+	if (issuer_name)
+		X509_NAME_free(issuer_name);
 
 	if (cert)
 		X509_free(cert);

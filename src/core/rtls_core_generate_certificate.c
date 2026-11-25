@@ -110,6 +110,20 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 		.endorsements_buffer_size = 0,
 	};
 
+	if (ctx->config.cert_subject.valid) {
+		cert_info.subject.organization = ctx->config.cert_subject.organization;
+		cert_info.subject.organization_unit = ctx->config.cert_subject.organization_unit;
+		cert_info.subject.common_name = ctx->config.cert_subject.common_name;
+	}
+
+	if (ctx->config.cert_issuer.valid) {
+		cert_info.issuer.organization = ctx->config.cert_issuer.organization;
+		cert_info.issuer.organization_unit = ctx->config.cert_issuer.organization_unit;
+		cert_info.issuer.common_name = ctx->config.cert_issuer.common_name;
+	} else {
+		cert_info.issuer = cert_info.subject;
+	}
+
 	/* Get DICE evidence buffer.
 	 * This check is a workaround for the nullattester.
 	 * Note: For nullattester, we do not generate an evidence_buffer, nor do we generate evidence extension.

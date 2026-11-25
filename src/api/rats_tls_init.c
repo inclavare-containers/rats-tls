@@ -16,6 +16,39 @@
 #include "internal/verifier.h"
 #include <openssl/opensslv.h>
 
+static rats_tls_err_t clone_cert_name(bool valid, const unsigned char *src_org,
+				      const unsigned char *src_ou, const unsigned char *src_cn,
+				      bool *dst_valid, const unsigned char **dst_org,
+				      const unsigned char **dst_ou, const unsigned char **dst_cn)
+{
+	*dst_org = NULL;
+	*dst_ou = NULL;
+	*dst_cn = NULL;
+
+	if (!valid) {
+		*dst_valid = false;
+		return RATS_TLS_ERR_NONE;
+	}
+
+	if ((!src_org || !src_org[0]) && (!src_ou || !src_ou[0]) && (!src_cn || !src_cn[0])) {
+		*dst_valid = false;
+		return -RATS_TLS_ERR_INVALID;
+	}
+
+	*dst_valid = true;
+	const unsigned char *srcs[3] = { src_org, src_ou, src_cn };
+	const unsigned char **dsts[3] = { dst_org, dst_ou, dst_cn };
+	for (size_t i = 0; i < 3; ++i) {
+		if (srcs[i] && srcs[i][0]) {
+			*dsts[i] = (const unsigned char *)strdup((const char *)srcs[i]);
+			if (!*dsts[i])
+				return -RATS_TLS_ERR_NO_MEM;
+		}
+	}
+
+	return RATS_TLS_ERR_NONE;
+}
+
 rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handle)
 {
 	if (!conf || !handle)
@@ -66,15 +99,38 @@ rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handl
 			   conf->custom_claims, conf->custom_claims_length);
 		ctx->config.custom_claims =
 			clone_claims_list(conf->custom_claims, conf->custom_claims_length);
-		err = RATS_TLS_ERR_NO_MEM;
+		err = -RATS_TLS_ERR_NO_MEM;
 		if (!ctx->config.custom_claims) {
 			RTLS_ERR("failed to make copy of custom claims: out of memory\n");
+			ctx->config.cert_subject.valid = false;
+			ctx->config.cert_issuer.valid = false;
 			goto err_ctx;
 		}
 		ctx->config.custom_claims_length = conf->custom_claims_length;
 	} else {
 		ctx->config.custom_claims = NULL;
 		ctx->config.custom_claims_length = 0;
+	}
+
+	err = clone_cert_name(conf->cert_subject.valid, conf->cert_subject.organization,
+			      conf->cert_subject.organization_unit, conf->cert_subject.common_name,
+			      &ctx->config.cert_subject.valid, &ctx->config.cert_subject.organization,
+			      &ctx->config.cert_subject.organization_unit,
+			      &ctx->config.cert_subject.common_name);
+	if (err != RATS_TLS_ERR_NONE) {
+		RTLS_ERR("failed to configure custom certificate subject: %#x\n", err);
+		ctx->config.cert_issuer.valid = false;
+		goto err_ctx;
+	}
+
+	err = clone_cert_name(conf->cert_issuer.valid, conf->cert_issuer.organization,
+			      conf->cert_issuer.organization_unit, conf->cert_issuer.common_name,
+			      &ctx->config.cert_issuer.valid, &ctx->config.cert_issuer.organization,
+			      &ctx->config.cert_issuer.organization_unit,
+			      &ctx->config.cert_issuer.common_name);
+	if (err != RATS_TLS_ERR_NONE) {
+		RTLS_ERR("failed to configure custom certificate issuer: %#x\n", err);
+		goto err_ctx;
 	}
 
 	/* Select the target crypto wrapper to be used */
@@ -136,6 +192,9 @@ rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handl
 	return RATS_TLS_ERR_NONE;
 
 err_ctx:
+	if (ctx->config.custom_claims)
+		free_claims_list(ctx->config.custom_claims, ctx->config.custom_claims_length);
+	rtls_core_free_cert_names(&ctx->config);
 	free(ctx);
 	return err;
 }

@@ -39,6 +39,8 @@ extern rtls_core_context_t global_core_context;
 
 extern rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *);
 
+extern void rtls_core_free_cert_names(rats_tls_conf_t *conf);
+
 extern void rtls_exit(void);
 
 extern rats_tls_err_t rtls_instance_init(const char *type, const char *realpath, void **handle);
