@@ -30,6 +30,8 @@ rats_tls_err_t rats_tls_cleanup(rats_tls_handle handle)
 		free_claims_list(ctx->config.custom_claims, ctx->config.custom_claims_length);
 	}
 
+	rtls_core_free_cert_key(&ctx->config);
+
 	tls_wrapper_err_t err = handle->tls_wrapper->opts->cleanup(handle->tls_wrapper);
 	if (err != TLS_WRAPPER_ERR_NONE) {
 		RTLS_DEBUG("failed to clean up tls wrapper %#x\n", err);

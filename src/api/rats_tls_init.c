@@ -16,6 +16,16 @@
 #include "internal/verifier.h"
 #include <openssl/opensslv.h>
 
+static rats_tls_err_t clone_der_buf(const uint8_t *src, size_t len, const uint8_t **dst)
+{
+	uint8_t *copy = malloc(len);
+	if (!copy)
+		return -RATS_TLS_ERR_NO_MEM;
+	memcpy(copy, src, len);
+	*dst = copy;
+	return RATS_TLS_ERR_NONE;
+}
+
 rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handle)
 {
 	if (!conf || !handle)
@@ -66,15 +76,44 @@ rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handl
 			   conf->custom_claims, conf->custom_claims_length);
 		ctx->config.custom_claims =
 			clone_claims_list(conf->custom_claims, conf->custom_claims_length);
-		err = RATS_TLS_ERR_NO_MEM;
+		err = -RATS_TLS_ERR_NO_MEM;
 		if (!ctx->config.custom_claims) {
 			RTLS_ERR("failed to make copy of custom claims: out of memory\n");
+			ctx->config.cert_key.valid = false;
 			goto err_ctx;
 		}
 		ctx->config.custom_claims_length = conf->custom_claims_length;
 	} else {
 		ctx->config.custom_claims = NULL;
 		ctx->config.custom_claims_length = 0;
+	}
+
+	ctx->config.cert_key.privkey_buf = NULL;
+	ctx->config.cert_key.privkey_len = 0;
+	ctx->config.cert_key.pubkey_buf = NULL;
+	ctx->config.cert_key.pubkey_len = 0;
+	if (conf->cert_key.valid) {
+		if (!conf->cert_key.privkey_buf || !conf->cert_key.privkey_len ||
+		    (conf->cert_key.pubkey_buf && !conf->cert_key.pubkey_len) ||
+		    (!conf->cert_key.pubkey_buf && conf->cert_key.pubkey_len)) {
+			RTLS_ERR("invalid custom DER key configuration\n");
+			ctx->config.cert_key.valid = false;
+			err = -RATS_TLS_ERR_INVALID;
+			goto err_ctx;
+		}
+		err = clone_der_buf(conf->cert_key.privkey_buf, conf->cert_key.privkey_len,
+				    &ctx->config.cert_key.privkey_buf);
+		if (err != RATS_TLS_ERR_NONE)
+			goto err_ctx;
+		ctx->config.cert_key.privkey_len = conf->cert_key.privkey_len;
+
+		if (conf->cert_key.pubkey_buf) {
+			err = clone_der_buf(conf->cert_key.pubkey_buf, conf->cert_key.pubkey_len,
+					    &ctx->config.cert_key.pubkey_buf);
+			if (err != RATS_TLS_ERR_NONE)
+				goto err_ctx;
+			ctx->config.cert_key.pubkey_len = conf->cert_key.pubkey_len;
+		}
 	}
 
 	/* Select the target crypto wrapper to be used */
@@ -136,6 +175,9 @@ rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handl
 	return RATS_TLS_ERR_NONE;
 
 err_ctx:
+	if (ctx->config.custom_claims)
+		free_claims_list(ctx->config.custom_claims, ctx->config.custom_claims_length);
+	rtls_core_free_cert_key(&ctx->config);
 	free(ctx);
 	return err;
 }

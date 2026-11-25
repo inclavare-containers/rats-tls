@@ -19,9 +19,10 @@
 #include <openssl/ec.h>
 #include <openssl/pem.h>
 
-typedef union {
+typedef struct {
 	RSA *key;
 	EC_KEY *eckey;
+	EVP_PKEY *pkey;
 } openssl_ctx;
 
 #endif

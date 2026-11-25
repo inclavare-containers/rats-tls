@@ -17,6 +17,7 @@ link_directories(${LIBRARY_DIRS})
 set(SOURCES cleanup.c
             gen_cert.c
             gen_privkey.c
+            use_privkey.c
             gen_pubkey_hash.c
             gen_hash.c
             init.c

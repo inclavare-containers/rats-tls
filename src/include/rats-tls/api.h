@@ -63,6 +63,15 @@ typedef struct {
 		bool valid;
 		uint8_t cert_type;
 	} quote_sgx_ecdsa;
+
+	/* Optional DER-encoded public/private key buffers for dynamic signature algorithm */
+	struct {
+		bool valid;
+		const uint8_t *privkey_buf;
+		size_t privkey_len;
+		const uint8_t *pubkey_buf;
+		size_t pubkey_len;
+	} cert_key;
 } rats_tls_conf_t;
 
 typedef struct rtls_sgx_evidence {
