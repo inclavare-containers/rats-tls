@@ -15,6 +15,7 @@ tls_wrapper_err_t openssl_tls_init(tls_wrapper_ctx_t *ctx)
 	if (!ctx)
 		return -TLS_WRAPPER_ERR_INVALID;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	OpenSSL_add_all_algorithms();
 	SSL_load_error_strings();
 	ERR_load_crypto_strings();
@@ -24,6 +25,12 @@ tls_wrapper_err_t openssl_tls_init(tls_wrapper_ctx_t *ctx)
 		RTLS_ERR("failed to initialize the openssl library\n");
 		return -TLS_WRAPPER_ERR_NOT_FOUND;
 	}
+#else
+	if (OPENSSL_init_ssl(0, NULL) != 1) {
+		RTLS_ERR("failed to initialize the openssl library\n");
+		return -TLS_WRAPPER_ERR_NOT_FOUND;
+	}
+#endif
 
 	openssl_ctx_t *ssl_ctx = calloc(1, sizeof(*ssl_ctx));
 	if (!ssl_ctx)

@@ -19,58 +19,44 @@
 bool digest_sha(const void *msg, size_t msg_len, uint8_t *digest, size_t digest_len,
 		SHA_TYPE hash_algo)
 {
+	const EVP_MD *md = NULL;
+
 	switch (hash_algo) {
 	case SHA_ALGO_256:
 		assert(digest_len == SHA256_DIGEST_LENGTH);
-
-		SHA256_CTX context_256;
-
-		if (SHA256_Init(&context_256) != 1)
-			return false;
-		if (SHA256_Update(&context_256, (void *)msg, msg_len) != 1)
-			return false;
-		if (SHA256_Final(digest, &context_256) != 1)
-			return false;
+		md = EVP_sha256();
 		break;
 	case SHA_ALGO_384:
 		assert(digest_len == SHA384_DIGEST_LENGTH);
-
-		SHA512_CTX context_512;
-
-		if (SHA384_Init(&context_512) != 1)
-			return false;
-		if (SHA384_Update(&context_512, (void *)msg, msg_len) != 1)
-			return false;
-		if (SHA384_Final(digest, &context_512) != 1)
-			return false;
+		md = EVP_sha384();
 		break;
 	default:
 		RTLS_ERR("unsupported sha type\n");
 		return false;
 	}
 
-	return true;
+	return EVP_Digest(msg, msg_len, digest, NULL, md, NULL) == 1;
 }
 
 static bool ecdsa_verify(sev_sig *sig, EVP_PKEY **pub_evp_key, uint8_t *digest, size_t length)
 {
 	bool is_valid = false;
-	EC_KEY *pub_ec_key = NULL;
 	BIGNUM *r = NULL;
 	BIGNUM *s = NULL;
 	ECDSA_SIG *ecdsa_sig = NULL;
+	unsigned char *der_sig = NULL;
+	EVP_PKEY_CTX *pctx = NULL;
 
-	pub_ec_key = EVP_PKEY_get1_EC_KEY(*pub_evp_key);
-	if (!pub_ec_key) {
-		EC_KEY_free(pub_ec_key);
+	if (!pub_evp_key || !*pub_evp_key)
 		return is_valid;
-	}
 
 	/* Store the x and y components as separate BIGNUM objects. The values in the
 	 * SEV certificate are little-endian, must reverse bytes before storing in BIGNUM
 	 */
 	r = BN_lebin2bn(sig->ecdsa.r, sizeof(sig->ecdsa.r), NULL);
 	s = BN_lebin2bn(sig->ecdsa.s, sizeof(sig->ecdsa.s), NULL);
+	if (!r || !s)
+		goto err;
 
 	/* Create a ecdsa_sig from the bignums and store in sig */
 	ecdsa_sig = ECDSA_SIG_new();
@@ -83,9 +69,23 @@ static bool ecdsa_verify(sev_sig *sig, EVP_PKEY **pub_evp_key, uint8_t *digest, 
 		RTLS_ERR("failed to set the ecdsa_sig\n");
 		goto err;
 	}
+	r = NULL;
+	s = NULL;
+
+	int der_len = i2d_ECDSA_SIG(ecdsa_sig, &der_sig);
+	if (der_len <= 0) {
+		RTLS_ERR("failed to encode ECDSA_SIG\n");
+		goto err;
+	}
+
+	pctx = EVP_PKEY_CTX_new(*pub_evp_key, NULL);
+	if (!pctx || EVP_PKEY_verify_init(pctx) <= 0) {
+		RTLS_ERR("failed to init ecdsa verify\n");
+		goto err;
+	}
 
 	/* Validation will also be done by the FW */
-	if (ECDSA_do_verify(digest, (uint32_t)length, ecdsa_sig, pub_ec_key) != 1) {
+	if (EVP_PKEY_verify(pctx, der_sig, (size_t)der_len, digest, length) != 1) {
 		RTLS_ERR("failed to verify ecdsa\n");
 		goto err;
 	}
@@ -93,11 +93,16 @@ static bool ecdsa_verify(sev_sig *sig, EVP_PKEY **pub_evp_key, uint8_t *digest, 
 	is_valid = true;
 
 err:
+	if (pctx)
+		EVP_PKEY_CTX_free(pctx);
+	if (der_sig)
+		OPENSSL_free(der_sig);
 	if (ecdsa_sig)
 		ECDSA_SIG_free(ecdsa_sig);
-
-	if (pub_ec_key)
-		EC_KEY_free(pub_ec_key);
+	if (r)
+		BN_free(r);
+	if (s)
+		BN_free(s);
 
 	return is_valid;
 }
@@ -106,43 +111,43 @@ static bool rsa_verify(sev_sig *sig, EVP_PKEY **evp_pub_key, const uint8_t *hash
 		       SHA_TYPE hash_algo, bool pss)
 {
 	bool is_valid = false;
-	RSA *rsa_pub_key = NULL;
-	uint32_t sig_len = 0;
+	EVP_PKEY_CTX *pctx = NULL;
+	const EVP_MD *md = (hash_algo == SHA_ALGO_256) ? EVP_sha256() : EVP_sha384();
 
-	/* Pull the RSA key from the EVP_PKEY */
-	rsa_pub_key = EVP_PKEY_get1_RSA(*evp_pub_key);
-	if (!rsa_pub_key)
+	if (!evp_pub_key || !*evp_pub_key)
 		return is_valid;
 
-	sig_len = RSA_size(rsa_pub_key);
+	int sig_len = EVP_PKEY_size(*evp_pub_key);
+	if (sig_len <= 0 || (size_t)sig_len > sizeof(sig->rsa.s))
+		return is_valid;
+
+	pctx = EVP_PKEY_CTX_new(*evp_pub_key, NULL);
+	if (!pctx || EVP_PKEY_verify_init(pctx) <= 0)
+		goto err;
+
+	if (EVP_PKEY_CTX_set_signature_md(pctx, md) <= 0)
+		goto err;
 
 	if (pss) {
-		uint8_t decrypted[4096 / BITS_PER_BYTE] = { 0 };
 		uint8_t signature[4096 / BITS_PER_BYTE] = { 0 };
-
-		memset(decrypted, 0, sizeof(decrypted));
-		memset(signature, 0, sizeof(signature));
 
 		memcpy(signature, sig->rsa.s, 4096 / BITS_PER_BYTE);
 		if (!reverse_bytes(signature, 4096 / BITS_PER_BYTE))
 			goto err;
 
-		/* Decrypt of the signature */
-		if (RSA_public_decrypt(sig_len, signature, decrypted, rsa_pub_key,
-				       RSA_NO_PADDING) == -1)
+		if (EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
+		    EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -2) <= 0)
 			goto err;
 
-		/* sLen is -2 means salt length is recovered from the signature. */
-		if (RSA_verify_PKCS1_PSS(rsa_pub_key, hash,
-					 (hash_algo == SHA_ALGO_256) ? EVP_sha256() : EVP_sha384(),
-					 decrypted, -2) != 1) {
+		if (EVP_PKEY_verify(pctx, signature, (size_t)sig_len, hash, hash_len) != 1) {
 			RTLS_ERR("failed to verify rsa with pss\n");
 			goto err;
 		}
 	} else {
-		/* Verify the data */
-		if (RSA_verify((hash_algo == SHA_ALGO_256) ? NID_sha256 : NID_sha384, hash,
-			       (uint32_t)hash_len, sig->rsa.s, sig_len, rsa_pub_key) != 1) {
+		if (EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PADDING) <= 0)
+			goto err;
+
+		if (EVP_PKEY_verify(pctx, sig->rsa.s, (size_t)sig_len, hash, hash_len) != 1) {
 			RTLS_ERR("failed to verify rsa without pss\n");
 			goto err;
 		}
@@ -151,8 +156,8 @@ static bool rsa_verify(sev_sig *sig, EVP_PKEY **evp_pub_key, const uint8_t *hash
 	is_valid = true;
 
 err:
-	if (rsa_pub_key)
-		RSA_free(rsa_pub_key);
+	if (pctx)
+		EVP_PKEY_CTX_free(pctx);
 
 	return is_valid;
 }

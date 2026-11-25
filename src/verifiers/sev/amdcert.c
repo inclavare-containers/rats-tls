@@ -6,9 +6,13 @@
 
 #include <string.h>
 #include <openssl/evp.h>
-#include <openssl/hmac.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#endif
 #include "amdcert.h"
 #include "../sev-snp/utils.h"
 #include "../sev-snp/crypto.c"
@@ -87,19 +91,61 @@ static bool amd_cert_validate_sig(const amd_cert *cert, const amd_cert *parent,
 
 	memset(sha_digest, 0, sha_length);
 
-	RSA *rsa_pub_key = RSA_new();
+	EVP_PKEY *rsa_pub_key = NULL;
+	EVP_MD_CTX *md_ctx = NULL;
+	EVP_PKEY_CTX *verify_ctx = NULL;
 
-	/* Convert the parent to an RSA key to pass into RSA_verify */
+	/* Convert the parent to an RSA key to pass into EVP_PKEY_verify */
 	BIGNUM *modulus = BN_lebin2bn((uint8_t *)&parent->modulus, parent->modulus_size / 8, NULL);
 	BIGNUM *pub_exp = BN_lebin2bn((uint8_t *)&parent->pub_exp, parent->pub_exp_size / 8, NULL);
+	if (!modulus || !pub_exp) {
+		BN_free(modulus);
+		BN_free(pub_exp);
+		return false;
+	}
 
-	if (RSA_set0_key(rsa_pub_key, modulus, pub_exp, NULL) != 1)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+	OSSL_PARAM *params = NULL;
+	EVP_PKEY_CTX *key_ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+	if (!bld || !key_ctx ||
+	    !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, modulus) ||
+	    !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, pub_exp) ||
+	    !(params = OSSL_PARAM_BLD_to_param(bld)) ||
+	    EVP_PKEY_fromdata_init(key_ctx) <= 0 ||
+	    EVP_PKEY_fromdata(key_ctx, &rsa_pub_key, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+		OSSL_PARAM_free(params);
+		OSSL_PARAM_BLD_free(bld);
+		EVP_PKEY_CTX_free(key_ctx);
+		BN_free(modulus);
+		BN_free(pub_exp);
 		goto err;
+	}
+	OSSL_PARAM_free(params);
+	OSSL_PARAM_BLD_free(bld);
+	EVP_PKEY_CTX_free(key_ctx);
+	BN_free(modulus);
+	BN_free(pub_exp);
+#else
+	RSA *rsa = RSA_new();
+	if (!rsa || RSA_set0_key(rsa, modulus, pub_exp, NULL) != 1) {
+		RSA_free(rsa);
+		BN_free(modulus);
+		BN_free(pub_exp);
+		goto err;
+	}
+	rsa_pub_key = EVP_PKEY_new();
+	if (!rsa_pub_key || EVP_PKEY_assign_RSA(rsa_pub_key, rsa) != 1) {
+		RSA_free(rsa);
+		goto err;
+	}
+#endif
 
 	uint32_t digest_len = 0;
 	uint32_t fixed_offset = offsetof(amd_cert, pub_exp);
-	EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
-	if (EVP_DigestInit(md_ctx, (algo == SHA_ALGO_256) ? EVP_sha256() : EVP_sha384()) <= 0)
+	const EVP_MD *md = (algo == SHA_ALGO_256) ? EVP_sha256() : EVP_sha384();
+	md_ctx = EVP_MD_CTX_create();
+	if (!md_ctx || EVP_DigestInit(md_ctx, md) <= 0)
 		goto err;
 	if (EVP_DigestUpdate(md_ctx, cert, fixed_offset) <= 0)
 		goto err;
@@ -115,23 +161,24 @@ static bool amd_cert_validate_sig(const amd_cert *cert, const amd_cert *parent,
 	if (!reverse_bytes(signature, parent->modulus_size / 8))
 		goto err;
 
-	uint8_t decrypted[AMD_CERT_KEY_BYTES_4K] = { 0 };
-	/* Verify the signature. Start by a RAW decrypt of the signature */
-	if (RSA_public_decrypt(cert->modulus_size / 8, signature, decrypted, rsa_pub_key,
-			       RSA_NO_PADDING) == -1)
-		goto err;
-
 	/* Verify the data. SLen of -2 means salt length is recovered from the signature. */
-	if (RSA_verify_PKCS1_PSS(rsa_pub_key, sha_digest,
-				 (algo == SHA_ALGO_256) ? EVP_sha256() : EVP_sha384(), decrypted,
-				 -2) != 1)
+	verify_ctx = EVP_PKEY_CTX_new(rsa_pub_key, NULL);
+	if (!verify_ctx || EVP_PKEY_verify_init(verify_ctx) <= 0 ||
+	    EVP_PKEY_CTX_set_rsa_padding(verify_ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
+	    EVP_PKEY_CTX_set_rsa_pss_saltlen(verify_ctx, -2) <= 0 ||
+	    EVP_PKEY_CTX_set_signature_md(verify_ctx, md) <= 0 ||
+	    EVP_PKEY_verify(verify_ctx, signature, cert->modulus_size / 8, sha_digest, digest_len) !=
+		    1)
 		goto err;
 
 	is_valid = true;
 
 err:
+	if (verify_ctx)
+		EVP_PKEY_CTX_free(verify_ctx);
+
 	if (rsa_pub_key)
-		RSA_free(rsa_pub_key);
+		EVP_PKEY_free(rsa_pub_key);
 
 	if (md_ctx)
 		EVP_MD_CTX_free(md_ctx);

@@ -15,7 +15,14 @@ crypto_wrapper_err_t openssl_cleanup(crypto_wrapper_ctx_t *ctx)
 
 	openssl_ctx *octx = ctx->crypto_private;
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if (octx && octx->pkey) {
+		EVP_PKEY_free(octx->pkey);
+		octx->pkey = NULL;
+	}
+#else
 	/* octx->key has been freed by EVP_PKEY_free() */
+#endif
 	free(octx);
 
 	return CRYPTO_WRAPPER_ERR_NONE;

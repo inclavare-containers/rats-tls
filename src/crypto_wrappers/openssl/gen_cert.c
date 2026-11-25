@@ -134,6 +134,15 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 	octx = ctx->crypto_private;
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if (algo != RATS_TLS_CERT_ALGO_ECC_256_SHA256 &&
+	    algo != RATS_TLS_CERT_ALGO_RSA_3072_SHA256)
+		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+
+	pkey = octx->pkey;
+	if (!pkey)
+		return -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
+#else
 	pkey = EVP_PKEY_new();
 	if (!pkey)
 		return -CRYPTO_WRAPPER_ERR_NO_MEM;
@@ -147,8 +156,10 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 		if (!EVP_PKEY_assign_RSA(pkey, octx->key))
 			goto err;
 	} else {
+		EVP_PKEY_free(pkey);
 		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
 	}
+#endif
 
 	ret = -CRYPTO_WRAPPER_ERR_NO_MEM;
 	cert = X509_new();
@@ -157,17 +168,24 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 	X509_set_version(cert, 2 /* x509 version 3 cert */);
 	ASN1_INTEGER_set(X509_get_serialNumber(cert), CERT_SERIAL_NUMBER);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define rtls_x509_getm_notBefore(c) X509_getm_notBefore(c)
+#define rtls_x509_getm_notAfter(c)  X509_getm_notAfter(c)
+#else
+#define rtls_x509_getm_notBefore(c) X509_get_notBefore(c)
+#define rtls_x509_getm_notAfter(c)  X509_get_notAfter(c)
+#endif
 	if (!using_cert_nonce) {
 		/* WORKAROUND: allow 1 hour delay for the systems behind current clock */
-		X509_gmtime_adj(X509_get_notBefore(cert), -3600);
+		X509_gmtime_adj(rtls_x509_getm_notBefore(cert), -3600);
 		/* 1 year */
-		X509_gmtime_adj(X509_get_notAfter(cert), (long)3600 * 24 * 365 * 1);
+		X509_gmtime_adj(rtls_x509_getm_notAfter(cert), (long)3600 * 24 * 365 * 1);
 	} else {
 		/* WORKAROUND: with nonce mechanism, the validity of cert can be fixed within a larger range. */
 		const char timestr_notBefore[] = "19700101000001Z";
 		const char timestr_notAfter[] = "20491231235959Z";
-		ASN1_TIME_set_string(X509_get_notBefore(cert), timestr_notBefore);
-		ASN1_TIME_set_string(X509_get_notAfter(cert), timestr_notAfter);
+		ASN1_TIME_set_string(rtls_x509_getm_notBefore(cert), timestr_notBefore);
+		ASN1_TIME_set_string(rtls_x509_getm_notAfter(cert), timestr_notAfter);
 	}
 
 	ret = -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
@@ -240,8 +258,10 @@ err:
 	if (cert)
 		X509_free(cert);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	if (pkey)
 		EVP_PKEY_free(pkey);
+#endif
 
 	return ret;
 }
