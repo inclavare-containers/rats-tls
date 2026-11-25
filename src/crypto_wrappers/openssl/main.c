@@ -12,6 +12,9 @@ crypto_wrapper_err_t openssl_pre_init(void);
 crypto_wrapper_err_t openssl_init(crypto_wrapper_ctx_t *ctx);
 crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
 					 uint8_t *privkey_buf, unsigned int *privkey_len);
+crypto_wrapper_err_t openssl_use_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t *algo,
+					 const uint8_t *privkey_buf, size_t privkey_len,
+					 const uint8_t *pubkey_buf, size_t pubkey_len);
 crypto_wrapper_err_t openssl_gen_pubkey_hash(crypto_wrapper_ctx_t *ctx, rats_tls_cert_algo_t algo,
 					     uint8_t *hash);
 crypto_wrapper_err_t openssl_gen_hash(crypto_wrapper_ctx_t *ctx, hash_algo_t hash_algo,
@@ -27,6 +30,7 @@ static const crypto_wrapper_opts_t openssl_opts = {
 	.pre_init = openssl_pre_init,
 	.init = openssl_init,
 	.gen_privkey = openssl_gen_privkey,
+	.use_privkey = openssl_use_privkey,
 	.gen_pubkey_hash = openssl_gen_pubkey_hash,
 	.gen_hash = openssl_gen_hash,
 	.gen_cert = openssl_gen_cert,

@@ -35,6 +35,20 @@ extern void libtls_wrapper_openssl_init(void);
 #endif
 // clang-format on
 
+void rtls_core_free_cert_key(rats_tls_conf_t *conf)
+{
+	if (!conf || !conf->cert_key.valid)
+		return;
+
+	free((void *)conf->cert_key.privkey_buf);
+	conf->cert_key.privkey_buf = NULL;
+	conf->cert_key.privkey_len = 0;
+	free((void *)conf->cert_key.pubkey_buf);
+	conf->cert_key.pubkey_buf = NULL;
+	conf->cert_key.pubkey_len = 0;
+	conf->cert_key.valid = false;
+}
+
 #ifdef SGX
 void rtls_exit(void)
 {

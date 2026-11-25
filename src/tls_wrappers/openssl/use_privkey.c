@@ -18,17 +18,20 @@ tls_wrapper_err_t openssl_tls_use_privkey(tls_wrapper_ctx_t *ctx, rats_tls_cert_
 
 	openssl_ctx_t *ssl_ctx = (openssl_ctx_t *)ctx->tls_private;
 
-	int EPKEY;
-
-	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
-		EPKEY = EVP_PKEY_EC;
-	} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
-		EPKEY = EVP_PKEY_RSA;
-	} else {
+	if (algo != RATS_TLS_CERT_ALGO_ECC_256_SHA256 &&
+	    algo != RATS_TLS_CERT_ALGO_RSA_3072_SHA256)
 		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+
+	const unsigned char *p = privkey_buf;
+	EVP_PKEY *pkey = d2i_AutoPrivateKey(NULL, &p, (long)privkey_len);
+	if (!pkey) {
+		RTLS_ERR("failed to decode DER private key.\n");
+		print_openssl_err_all();
+		return -TLS_WRAPPER_ERR_PRIV_KEY;
 	}
 
-	int ret = SSL_CTX_use_PrivateKey_ASN1(EPKEY, ssl_ctx->sctx, privkey_buf, (long)privkey_len);
+	int ret = SSL_CTX_use_PrivateKey(ssl_ctx->sctx, pkey);
+	EVP_PKEY_free(pkey);
 
 	if (ret != SSL_SUCCESS) {
 		RTLS_ERR("failed to use private key.\n");

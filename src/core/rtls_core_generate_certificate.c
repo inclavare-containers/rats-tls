@@ -31,6 +31,24 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 	 * wrapper instance, and the core logic can search a proper crypto
 	 * wrapper instance to address the requesting algorithm.
 	 */
+	crypto_wrapper_err_t c_err;
+	uint8_t privkey_buf[2048];
+	unsigned int privkey_len = 0;
+
+	if (ctx->config.cert_key.valid) {
+		if (!ctx->crypto_wrapper->opts->use_privkey) {
+			RTLS_ERR("crypto wrapper '%s' does not support custom DER keys\n",
+				 ctx->crypto_wrapper->opts->name);
+			return -RATS_TLS_ERR_UNSUPPORTED_CERT_ALGO;
+		}
+		c_err = ctx->crypto_wrapper->opts->use_privkey(
+			ctx->crypto_wrapper, &ctx->config.cert_algo,
+			ctx->config.cert_key.privkey_buf, ctx->config.cert_key.privkey_len,
+			ctx->config.cert_key.pubkey_buf, ctx->config.cert_key.pubkey_len);
+		if (c_err != CRYPTO_WRAPPER_ERR_NONE)
+			return c_err;
+	}
+
 	unsigned int hash_size;
 
 	switch (ctx->config.cert_algo) {
@@ -43,14 +61,14 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 		return -RATS_TLS_ERR_UNSUPPORTED_CERT_ALGO;
 	}
 
-	/* Generate the new key */
-	crypto_wrapper_err_t c_err;
-	uint8_t privkey_buf[2048];
-	unsigned int privkey_len = sizeof(privkey_buf);
-	c_err = ctx->crypto_wrapper->opts->gen_privkey(ctx->crypto_wrapper, ctx->config.cert_algo,
-						       privkey_buf, &privkey_len);
-	if (c_err != CRYPTO_WRAPPER_ERR_NONE)
-		return c_err;
+	if (!ctx->config.cert_key.valid) {
+		/* Generate the new key */
+		privkey_len = sizeof(privkey_buf);
+		c_err = ctx->crypto_wrapper->opts->gen_privkey(
+			ctx->crypto_wrapper, ctx->config.cert_algo, privkey_buf, &privkey_len);
+		if (c_err != CRYPTO_WRAPPER_ERR_NONE)
+			return c_err;
+	}
 
 	/* Generate the hash of public key */
 	uint8_t hash[hash_size];
@@ -161,20 +179,24 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 		return c_err;
 
 	/* Use the TLS certificate and private key for TLS session */
-	if (privkey_len) {
+	const void *tls_privkey = ctx->config.cert_key.valid ? ctx->config.cert_key.privkey_buf
+							     : privkey_buf;
+	size_t tls_privkey_len = ctx->config.cert_key.valid ? ctx->config.cert_key.privkey_len
+							    : privkey_len;
+	if (tls_privkey_len) {
 		tls_wrapper_err_t t_err;
 
 #if 0
 	#ifndef SGX
 		/* Dump private key of this certificate */
 		FILE *fp = fopen("/tmp/privkey.der", "wb");
-		fwrite(privkey_buf, privkey_len, 1, fp);
+		fwrite(tls_privkey, tls_privkey_len, 1, fp);
 		fclose(fp);
 	#endif
 #endif
 
 		t_err = ctx->tls_wrapper->opts->use_privkey(ctx->tls_wrapper, ctx->config.cert_algo,
-							    privkey_buf, privkey_len);
+							    (void *)tls_privkey, tls_privkey_len);
 		if (t_err != TLS_WRAPPER_ERR_NONE) {
 			if (cert_info.cert_buf)
 				free(cert_info.cert_buf);

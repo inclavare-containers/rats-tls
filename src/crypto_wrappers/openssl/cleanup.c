@@ -15,7 +15,12 @@ crypto_wrapper_err_t openssl_cleanup(crypto_wrapper_ctx_t *ctx)
 
 	openssl_ctx *octx = ctx->crypto_private;
 
-	/* octx->key has been freed by EVP_PKEY_free() */
+	if (octx && octx->pkey) {
+		EVP_PKEY_free(octx->pkey);
+		octx->pkey = NULL;
+	}
+
+	/* octx->key/eckey have been freed by EVP_PKEY_free() when gen_cert ran */
 	free(octx);
 
 	return CRYPTO_WRAPPER_ERR_NONE;

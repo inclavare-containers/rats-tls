@@ -134,20 +134,26 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 	octx = ctx->crypto_private;
 
-	pkey = EVP_PKEY_new();
-	if (!pkey)
-		return -CRYPTO_WRAPPER_ERR_NO_MEM;
-
-	ret = -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
-
-	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
-		if (!EVP_PKEY_assign_EC_KEY(pkey, octx->eckey))
-			goto err;
-	} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
-		if (!EVP_PKEY_assign_RSA(pkey, octx->key))
-			goto err;
+	if (octx->pkey) {
+		pkey = octx->pkey;
+		octx->pkey = NULL;
 	} else {
-		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+		pkey = EVP_PKEY_new();
+		if (!pkey)
+			return -CRYPTO_WRAPPER_ERR_NO_MEM;
+
+		ret = -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
+
+		if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
+			if (!EVP_PKEY_assign_EC_KEY(pkey, octx->eckey))
+				goto err;
+		} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
+			if (!EVP_PKEY_assign_RSA(pkey, octx->key))
+				goto err;
+		} else {
+			EVP_PKEY_free(pkey);
+			return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+		}
 	}
 
 	ret = -CRYPTO_WRAPPER_ERR_NO_MEM;

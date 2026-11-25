@@ -21,7 +21,18 @@ crypto_wrapper_err_t openssl_gen_pubkey_hash(crypto_wrapper_ctx_t *ctx, rats_tls
 	octx = ctx->crypto_private;
 
 	/* Calculate hash of SubjectPublicKeyInfo object */
-	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
+	if (octx->pkey) {
+		int len = i2d_PUBKEY(octx->pkey, NULL);
+		if (len <= 0)
+			return -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
+		unsigned char buffer[len];
+		unsigned char *p = buffer;
+
+		if (i2d_PUBKEY(octx->pkey, &p) != len)
+			return -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
+
+		SHA256(buffer, len, hash);
+	} else if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
 		int len = i2d_EC_PUBKEY(octx->eckey, NULL);
 		unsigned char buffer[len];
 		unsigned char *p = buffer;
