@@ -157,11 +157,24 @@ crypto_wrapper_err_t openssl_gen_cert(crypto_wrapper_ctx_t *ctx, rats_tls_cert_a
 
 	X509_set_version(cert, 2 /* x509 version 3 cert */);
 	ASN1_INTEGER_set(X509_get_serialNumber(cert), CERT_SERIAL_NUMBER);
-	if (!using_cert_nonce) {
+	if (cert_info->validity.valid) {
+		if (cert_info->validity.not_before >= cert_info->validity.not_after) {
+			RTLS_ERR("invalid certificate validity: not_before (%ld) >= not_after (%ld)\n",
+				 cert_info->validity.not_before, cert_info->validity.not_after);
+			ret = -CRYPTO_WRAPPER_ERR_INVALID;
+			goto err;
+		}
+		if (!X509_gmtime_adj(X509_get_notBefore(cert), cert_info->validity.not_before) ||
+		    !X509_gmtime_adj(X509_get_notAfter(cert), cert_info->validity.not_after)) {
+			RTLS_ERR("failed to set custom certificate validity period\n");
+			ret = -CRYPTO_WRAPPER_ERR_CERT;
+			goto err;
+		}
+	} else if (!using_cert_nonce) {
 		/* WORKAROUND: allow 1 hour delay for the systems behind current clock */
-		X509_gmtime_adj(X509_get_notBefore(cert), -3600);
+		X509_gmtime_adj(X509_get_notBefore(cert), RATS_TLS_CERT_DEFAULT_NOT_BEFORE_OFFSET);
 		/* 1 year */
-		X509_gmtime_adj(X509_get_notAfter(cert), (long)3600 * 24 * 365 * 1);
+		X509_gmtime_adj(X509_get_notAfter(cert), RATS_TLS_CERT_DEFAULT_NOT_AFTER_OFFSET);
 	} else {
 		/* WORKAROUND: with nonce mechanism, the validity of cert can be fixed within a larger range. */
 		const char timestr_notBefore[] = "19700101000001Z";

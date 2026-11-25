@@ -58,6 +58,13 @@ rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handl
 			  global_core_context.config.cert_algo);
 	}
 
+	if (ctx->config.cert_validity.valid &&
+	    ctx->config.cert_validity.not_before >= ctx->config.cert_validity.not_after) {
+		RTLS_ERR("invalid certificate validity: not_before (%ld) >= not_after (%ld)\n",
+			 ctx->config.cert_validity.not_before, ctx->config.cert_validity.not_after);
+		goto err_ctx;
+	}
+
 	global_log_level = ctx->config.log_level;
 
 	/* Make a copy of user-defined custom claims */

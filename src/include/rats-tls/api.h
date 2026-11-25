@@ -63,6 +63,13 @@ typedef struct {
 		bool valid;
 		uint8_t cert_type;
 	} quote_sgx_ecdsa;
+
+	/* Optional certificate validity period (seconds offset from current UTC time) */
+	struct {
+		bool valid;
+		long not_before;
+		long not_after;
+	} cert_validity;
 } rats_tls_conf_t;
 
 typedef struct rtls_sgx_evidence {
@@ -128,6 +135,9 @@ typedef struct rtls_evidence {
 #define RATS_TLS_API_VERSION_1	     1
 #define RATS_TLS_API_VERSION_MAX     RATS_TLS_API_VERSION_1
 #define RATS_TLS_API_VERSION_DEFAULT RATS_TLS_API_VERSION_1
+
+#define RATS_TLS_CERT_DEFAULT_NOT_BEFORE_OFFSET (-3600L)
+#define RATS_TLS_CERT_DEFAULT_NOT_AFTER_OFFSET	((long)3600 * 24 * 365 * 1)
 
 #define RATS_TLS_CONF_FLAGS_GLOBAL_MASK_SHIFT  0
 #define RATS_TLS_CONF_FLAGS_PRIVATE_MASK_SHIFT 32
