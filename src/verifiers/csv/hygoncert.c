@@ -15,7 +15,20 @@
 #include <openssl/evp.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
 #include "hygoncert.h"
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#ifndef SM2err
+#define SM2err(f, r) RTLS_ERR("SM2 error func=%d reason=%d\n", (f), (r))
+#endif
+#ifndef ECerr
+#define ECerr(f, r) RTLS_ERR("EC error func=%d reason=%d\n", (f), (r))
+#endif
+#ifndef EC_F_EC_GROUP_NEW_FROM_DATA
+#define EC_F_EC_GROUP_NEW_FROM_DATA 175
+#endif
+#endif
 
 /*********************************************************************
  **************   SM2 interface from BabaSSL/openssl   ***************
@@ -70,10 +83,9 @@
  * 	0: fail
  */
 int sm2_compute_z_digest(uint8_t *out, const EVP_MD *digest, const uint8_t *id, const size_t id_len,
-			 const EC_KEY *key)
+			 const EC_GROUP *group, const EC_POINT *pub_key)
 {
 	int rc = 0;
-	const EC_GROUP *group = EC_KEY_get0_group(key);
 	BN_CTX *ctx = NULL;
 	EVP_MD_CTX *hash = NULL;
 	BIGNUM *p = NULL;
@@ -156,7 +168,7 @@ int sm2_compute_z_digest(uint8_t *out, const EVP_MD *digest, const uint8_t *id, 
 	    !EC_POINT_get_affine_coordinates(group, EC_GROUP_get0_generator(group), xG, yG, ctx) ||
 	    BN_bn2binpad(xG, buf, p_bytes) < 0 || !EVP_DigestUpdate(hash, buf, p_bytes) ||
 	    BN_bn2binpad(yG, buf, p_bytes) < 0 || !EVP_DigestUpdate(hash, buf, p_bytes) ||
-	    !EC_POINT_get_affine_coordinates(group, EC_KEY_get0_public_key(key), xA, yA, ctx) ||
+	    !EC_POINT_get_affine_coordinates(group, pub_key, xA, yA, ctx) ||
 	    BN_bn2binpad(xA, buf, p_bytes) < 0 || !EVP_DigestUpdate(hash, buf, p_bytes) ||
 	    BN_bn2binpad(yA, buf, p_bytes) < 0 || !EVP_DigestUpdate(hash, buf, p_bytes) ||
 	    !EVP_DigestFinal(hash, out, NULL)) {
@@ -185,10 +197,10 @@ done:
  * 	1: success
  * 	0: fail
  */
-static int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig, const BIGNUM *e)
+static int sm2_sig_verify(const EC_GROUP *group, const EC_POINT *pub_key, const ECDSA_SIG *sig,
+			  const BIGNUM *e)
 {
 	int ret = 0;
-	const EC_GROUP *group = EC_KEY_get0_group(key);
 	const BIGNUM *order = EC_GROUP_get0_order(group);
 	BN_CTX *ctx = NULL;
 	EC_POINT *pt = NULL;
@@ -240,7 +252,7 @@ static int sm2_sig_verify(const EC_KEY *key, const ECDSA_SIG *sig, const BIGNUM 
 		goto done;
 	}
 
-	if (!EC_POINT_mul(group, pt, s, EC_KEY_get0_public_key(key), t, ctx) ||
+	if (!EC_POINT_mul(group, pt, s, pub_key, t, ctx) ||
 	    !EC_POINT_get_affine_coordinates(group, pt, x1, NULL, ctx)) {
 		SM2err(SM2_F_SM2_SIG_VERIFY, ERR_R_EC_LIB);
 		goto done;
@@ -275,7 +287,8 @@ done:
  * 	BIGNUM point: success
  * 	        NULL: fail
  */
-static BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest, const EC_KEY *key, const uint8_t *id,
+static BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest, const EC_GROUP *group,
+				    const EC_POINT *pub_key, const uint8_t *id,
 				    const size_t id_len, const uint8_t *msg, size_t msg_len)
 {
 	EVP_MD_CTX *hash = EVP_MD_CTX_new();
@@ -294,7 +307,7 @@ static BIGNUM *sm2_compute_msg_hash(const EVP_MD *digest, const EC_KEY *key, con
 		goto done;
 	}
 
-	if (!sm2_compute_z_digest(z, digest, id, id_len, key)) {
+	if (!sm2_compute_z_digest(z, digest, id, id_len, group, pub_key)) {
 		/* SM2err already called */
 		goto done;
 	}
@@ -333,19 +346,20 @@ done:
  * 	1: success
  * 	0: fail
  */
-int sm2_do_verify(const EC_KEY *key, const EVP_MD *digest, const ECDSA_SIG *sig, const uint8_t *id,
-		  const size_t id_len, const uint8_t *msg, size_t msg_len)
+int sm2_do_verify(const EC_GROUP *group, const EC_POINT *pub_key, const EVP_MD *digest,
+		  const ECDSA_SIG *sig, const uint8_t *id, const size_t id_len, const uint8_t *msg,
+		  size_t msg_len)
 {
 	BIGNUM *e = NULL;
 	int ret = 0;
 
-	e = sm2_compute_msg_hash(digest, key, id, id_len, msg, msg_len);
+	e = sm2_compute_msg_hash(digest, group, pub_key, id, id_len, msg, msg_len);
 	if (e == NULL) {
 		/* SM2err already called */
 		goto done;
 	}
 
-	ret = sm2_sig_verify(key, sig, e);
+	ret = sm2_sig_verify(group, pub_key, sig, e);
 
 	RTLS_DEBUG("[VERIFY] %s %d: ret %d\n", __func__, __LINE__, ret);
 done:
@@ -570,14 +584,18 @@ static const struct {
 typedef struct _ec_list_element_st {
 	int nid;
 	const EC_CURVE_DATA *data;
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 	const EC_METHOD *(*meth)(void);
+#endif
 	const char *comment;
 } ec_list_element;
 
 static const ec_list_element sm2_curve = {
 	NID_sm2,
 	&_EC_sm2p256v1.h,
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 	0,
+#endif
 	"SM2 curve over a 256 bit prime field",
 };
 
@@ -589,13 +607,16 @@ static EC_GROUP *ec_group_new_from_data(const ec_list_element curve)
 	BIGNUM *p = NULL, *a = NULL, *b = NULL, *x = NULL, *y = NULL, *order = NULL;
 	int ok = 0;
 	int seed_len, param_len;
-	const EC_METHOD *meth;
 	const EC_CURVE_DATA *data;
 	const unsigned char *params;
 
 	/* If no curve data curve method must handle everything */
 	if (curve.data == NULL)
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 		return EC_GROUP_new(curve.meth != NULL ? curve.meth() : NULL);
+#else
+		return NULL;
+#endif
 
 	if ((ctx = BN_CTX_new()) == NULL) {
 		ECerr(EC_F_EC_GROUP_NEW_FROM_DATA, ERR_R_MALLOC_FAILURE);
@@ -791,19 +812,14 @@ static int sm2_verify_sig(const sm2_pubkey_t *sm2_pubkey, const uint8_t *msg, si
 			  const sm2_userid_t *user_id, const sm2_signature_t *sig)
 {
 	int ret = -1;
-	EC_KEY *ec_key = NULL;
 	EC_GROUP *group = NULL;
+	EC_POINT *pub_key = NULL;
 	ECDSA_SIG *ecdsa_sig = NULL;
 	BIGNUM *bn_qx, *bn_qy, *bn_sig_r, *bn_sig_s;
 
-	// convert @sm2_pubkey to EC_KEY
-	if (!(ec_key = EC_KEY_new())) {
-		RTLS_DEBUG("EC_KEY_new() fail\n");
-		return -1;
-	}
 	if (!(bn_qx = BN_new())) {
 		RTLS_DEBUG("BN_new() bn_qx fail\n");
-		goto err_free_ec_key;
+		return -1;
 	}
 	if (!(bn_qy = BN_new())) {
 		RTLS_DEBUG("BN_new() bn_qy fail\n");
@@ -813,26 +829,24 @@ static int sm2_verify_sig(const sm2_pubkey_t *sm2_pubkey, const uint8_t *msg, si
 	BN_bin2bn(sm2_pubkey->qy, HYGON_SM2_POINT_SIZE, bn_qy);
 
 	if (!(group = ec_group_new_from_data(sm2_curve))) {
-		RTLS_DEBUG("EC_GROUP_new_by_curve_name() fail\n");
+		RTLS_DEBUG("ec_group_new_from_data() fail\n");
 		goto err_free_bn_qy;
 	}
-	ret = EC_KEY_set_group(ec_key, group);
-	if (ret != 1) {
-		RTLS_DEBUG("EC_KEY_set_group() fail\n");
+	if (!(pub_key = EC_POINT_new(group))) {
+		RTLS_DEBUG("EC_POINT_new() fail\n");
 		goto err_free_group;
 	}
-
-	ret = EC_KEY_set_public_key_affine_coordinates(ec_key, bn_qx, bn_qy);
+	ret = EC_POINT_set_affine_coordinates(group, pub_key, bn_qx, bn_qy, NULL);
 	if (ret != 1) {
-		RTLS_DEBUG("EC_KEY_set_public_key_affine_coordinates() fail\n");
-		goto err_free_group;
+		RTLS_DEBUG("EC_POINT_set_affine_coordinates() fail\n");
+		goto err_free_pub_key;
 	}
 
 	// convert @sig to ECDSA_SIG
 	ret = -1;
 	if (!(bn_sig_r = BN_new())) {
 		RTLS_DEBUG("BN_new() bn_sig_r fail\n");
-		goto err_free_group;
+		goto err_free_pub_key;
 	}
 	if (!(bn_sig_s = BN_new())) {
 		RTLS_DEBUG("BN_new() bn_sig_s fail\n");
@@ -852,26 +866,27 @@ static int sm2_verify_sig(const sm2_pubkey_t *sm2_pubkey, const uint8_t *msg, si
 	}
 
 	// verify ECDSA_SIG
-	ret = sm2_do_verify(ec_key, EVP_sm3(), ecdsa_sig, user_id->uid, user_id->len, msg, msg_len);
+	ret = sm2_do_verify(group, pub_key, EVP_sm3(), ecdsa_sig, user_id->uid, user_id->len, msg,
+			    msg_len);
 	if (ret != 1)
 		RTLS_DEBUG("sm2_do_verify() ret %d\n", ret);
 
 err_free_ecdsa_sig:
 	// ECDSA_SIG_free will free bn_sig_r and bn_sig_s
 	ECDSA_SIG_free(ecdsa_sig);
-	goto err_free_group;
+	goto err_free_pub_key;
 err_free_bn_sig_s:
 	BN_free(bn_sig_s);
 err_free_bn_sig_r:
 	BN_free(bn_sig_r);
+err_free_pub_key:
+	EC_POINT_free(pub_key);
 err_free_group:
 	EC_GROUP_free(group);
 err_free_bn_qy:
 	BN_free(bn_qy);
 err_free_bn_qx:
 	BN_free(bn_qx);
-err_free_ec_key:
-	EC_KEY_free(ec_key);
 
 	return ret;
 }

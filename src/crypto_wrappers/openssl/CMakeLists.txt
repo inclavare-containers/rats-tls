@@ -30,7 +30,7 @@ if(SGX)
     add_dependencies(${PROJECT_NAME} intel-sgx-ssl)
 else()
     add_library(${PROJECT_NAME} SHARED ${SOURCES})
-    target_link_libraries(${PROJECT_NAME} ${RATS_TLS_LDFLAGS} ${RTLS_LIB} crypto.so)
+    target_link_libraries(${PROJECT_NAME} ${RATS_TLS_LDFLAGS} ${RTLS_LIB} crypto)
     set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${VERSION} SOVERSION ${VERSION_MAJOR})
 endif()
 

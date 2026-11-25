@@ -21,6 +21,30 @@ crypto_wrapper_err_t openssl_gen_pubkey_hash(crypto_wrapper_ctx_t *ctx, rats_tls
 	octx = ctx->crypto_private;
 
 	/* Calculate hash of SubjectPublicKeyInfo object */
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if (algo != RATS_TLS_CERT_ALGO_ECC_256_SHA256 &&
+	    algo != RATS_TLS_CERT_ALGO_RSA_3072_SHA256)
+		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+
+	int len = i2d_PUBKEY(octx->pkey, NULL);
+	if (len <= 0)
+		return -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
+
+	unsigned char buffer[len];
+	unsigned char *p = buffer;
+
+	len = i2d_PUBKEY(octx->pkey, &p);
+	if (len <= 0)
+		return -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
+
+	if (!EVP_Digest(buffer, (size_t)len, hash, NULL, EVP_sha256(), NULL))
+		return -CRYPTO_WRAPPER_ERR_PUB_KEY_LEN;
+
+	RTLS_DEBUG(
+		"the sha256 of public key [%d] %02x%02x%02x%02x%02x%02x%02x%02x...%02x%02x%02x%02x\n",
+		len, hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
+		hash[28], hash[29], hash[30], hash[31]);
+#else
 	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
 		int len = i2d_EC_PUBKEY(octx->eckey, NULL);
 		unsigned char buffer[len];
@@ -51,6 +75,7 @@ crypto_wrapper_err_t openssl_gen_pubkey_hash(crypto_wrapper_ctx_t *ctx, rats_tls
 	} else {
 		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
 	}
+#endif
 
 	return CRYPTO_WRAPPER_ERR_NONE;
 }

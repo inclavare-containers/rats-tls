@@ -19,9 +19,17 @@
 #include <openssl/ec.h>
 #include <openssl/pem.h>
 
+#include <openssl/opensslv.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+typedef struct {
+	EVP_PKEY *pkey;
+} openssl_ctx;
+#else
 typedef union {
 	RSA *key;
 	EC_KEY *eckey;
 } openssl_ctx;
+#endif
 
 #endif

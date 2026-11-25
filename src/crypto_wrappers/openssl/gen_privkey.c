@@ -32,6 +32,99 @@ crypto_wrapper_err_t openssl_gen_privkey(crypto_wrapper_ctx_t *ctx, rats_tls_cer
 
 	ret = -CRYPTO_WRAPPER_ERR_NO_MEM;
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if (octx->pkey) {
+		EVP_PKEY_free(octx->pkey);
+		octx->pkey = NULL;
+	}
+
+	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
+		EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
+		if (!pctx)
+			goto err;
+
+		ret = -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
+		if (EVP_PKEY_keygen_init(pctx) <= 0 ||
+		    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1) <= 0 ||
+		    EVP_PKEY_CTX_set_ec_param_enc(pctx, OPENSSL_EC_NAMED_CURVE) <= 0 ||
+		    EVP_PKEY_keygen(pctx, &octx->pkey) <= 0) {
+			EVP_PKEY_CTX_free(pctx);
+			goto err;
+		}
+		EVP_PKEY_CTX_free(pctx);
+
+		/* Encode elliptic curve key DER */
+		len = i2d_PrivateKey(octx->pkey, NULL);
+		if (len < 0)
+			goto err;
+
+		if (p == NULL) {
+			*privkey_len = (uint32_t)len;
+			return CRYPTO_WRAPPER_ERR_NONE;
+		}
+
+		ret = -CRYPTO_WRAPPER_ERR_ECC_KEY_LEN;
+		if (*privkey_len < (uint32_t)len)
+			goto err;
+
+		len = i2d_PrivateKey(octx->pkey, &p);
+		if (len < 0)
+			goto err;
+
+		RTLS_DEBUG("ECC-256 private key (%d-byte) in DER format generated\n", len);
+	} else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256) {
+		EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+		if (!pctx)
+			goto err;
+
+		ret = -CRYPTO_WRAPPER_ERR_PRIV_KEY_LEN;
+		if (EVP_PKEY_keygen_init(pctx) <= 0 ||
+		    EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, 3072) <= 0 ||
+		    EVP_PKEY_keygen(pctx, &octx->pkey) <= 0) {
+			EVP_PKEY_CTX_free(pctx);
+			goto err;
+		}
+		EVP_PKEY_CTX_free(pctx);
+
+		len = i2d_PrivateKey(octx->pkey, NULL);
+		if (len < 0)
+			goto err;
+
+		if (p == NULL) {
+			*privkey_len = (uint32_t)len;
+			return CRYPTO_WRAPPER_ERR_NONE;
+		}
+
+		ret = -CRYPTO_WRAPPER_ERR_RSA_KEY_LEN;
+		if (*privkey_len < (uint32_t)len)
+			goto err;
+
+		len = i2d_PrivateKey(octx->pkey, &p);
+		if (len < 0)
+			goto err;
+
+		RTLS_DEBUG("RSA-3072 private key (%d-byte) in DER format generated\n", len);
+	} else {
+		return -CRYPTO_WRAPPER_ERR_UNSUPPORTED_ALGO;
+	}
+
+	*privkey_len = (uint32_t)len;
+
+	return CRYPTO_WRAPPER_ERR_NONE;
+
+err:
+	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256)
+		RTLS_DEBUG("failed to generate ECC-256 private key %d\n", ret);
+	else if (algo == RATS_TLS_CERT_ALGO_RSA_3072_SHA256)
+		RTLS_DEBUG("failed to generate RSA-3072 private key %d\n", ret);
+
+	if (octx->pkey) {
+		EVP_PKEY_free(octx->pkey);
+		octx->pkey = NULL;
+	}
+	(void)e;
+	return ret;
+#else
 	if (algo == RATS_TLS_CERT_ALGO_ECC_256_SHA256) {
 		octx->eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 		if (octx->eckey == NULL)
@@ -130,4 +223,5 @@ err:
 			BN_free(e);
 	}
 	return ret;
+#endif
 }

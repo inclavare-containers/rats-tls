@@ -7,8 +7,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <openssl/evp.h>
+#include <openssl/rsa.h>
 #include <openssl/ts.h>
 #include <openssl/ecdh.h>
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#endif
 #include <rats-tls/log.h>
 #include <rats-tls/attester.h>
 #include "sevcert.h"
@@ -56,18 +62,118 @@ static bool validate_body(const sev_cert *cert)
  * function converts that format into a EVP_PKEY format where it can be
  * used by other openssl functions.
  */
-static int compile_public_key_from_certificate(const sev_cert *cert, EVP_PKEY *evp_pub_key)
+static int compile_public_key_from_certificate(const sev_cert *cert, EVP_PKEY **evp_pub_key)
 {
 	int cmd_ret = -1;
 	if (!cert || !evp_pub_key)
 		return cmd_ret;
 
-	RSA *rsa_pub_key = NULL;
-	EC_KEY *ec_pub_key = NULL;
+	*evp_pub_key = NULL;
 	BIGNUM *x_big_num = NULL;
 	BIGNUM *y_big_num = NULL;
 	BIGNUM *modulus = NULL;
 	BIGNUM *pub_exp = NULL;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+	OSSL_PARAM *params = NULL;
+	EVP_PKEY_CTX *pctx = NULL;
+	EVP_PKEY_CTX *check_ctx = NULL;
+
+	if (!bld)
+		return cmd_ret;
+
+	switch (cert->pub_key_algo) {
+	case SEV_SIG_ALGO_RSA_SHA256:
+	case SEV_SIG_ALGO_RSA_SHA384:
+		modulus = BN_lebin2bn((uint8_t *)&cert->pub_key.rsa.modulus,
+				      cert->pub_key.rsa.modulus_size / 8, NULL);
+		pub_exp = BN_lebin2bn((uint8_t *)&cert->pub_key.rsa.pub_exp,
+				      cert->pub_key.rsa.modulus_size / 8, NULL); // e
+		if (!modulus || !pub_exp ||
+		    !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, modulus) ||
+		    !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, pub_exp) ||
+		    !(params = OSSL_PARAM_BLD_to_param(bld)))
+			goto err;
+
+		pctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+		if (!pctx || EVP_PKEY_fromdata_init(pctx) <= 0 ||
+		    EVP_PKEY_fromdata(pctx, evp_pub_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+			goto err;
+		break;
+	case SEV_SIG_ALGO_ECDSA_SHA256:
+	case SEV_SIG_ALGO_ECDSA_SHA384:
+	case SEV_SIG_ALGO_ECDH_SHA256:
+	case SEV_SIG_ALGO_ECDH_SHA384: {
+		if ((cert->pub_key_algo == SEV_SIG_ALGO_ECDSA_SHA256) ||
+		    (cert->pub_key_algo == SEV_SIG_ALGO_ECDSA_SHA384)) {
+			x_big_num = BN_lebin2bn(cert->pub_key.ecdsa.qx,
+						sizeof(cert->pub_key.ecdsa.qx), NULL);
+			y_big_num = BN_lebin2bn(cert->pub_key.ecdsa.qy,
+						sizeof(cert->pub_key.ecdsa.qy), NULL);
+		} else {
+			x_big_num = BN_lebin2bn(cert->pub_key.ecdh.qx,
+						sizeof(cert->pub_key.ecdh.qx), NULL);
+			y_big_num = BN_lebin2bn(cert->pub_key.ecdh.qy,
+						sizeof(cert->pub_key.ecdh.qy), NULL);
+		}
+		if (!x_big_num || !y_big_num)
+			goto err;
+
+		/* P-384 uncompressed EC point: 0x04 || X (48 bytes) || Y (48 bytes) */
+		uint8_t pub_bytes[1 + 48 * 2];
+		pub_bytes[0] = 0x04;
+		if (BN_bn2binpad(x_big_num, pub_bytes + 1, 48) != 48 ||
+		    BN_bn2binpad(y_big_num, pub_bytes + 49, 48) != 48)
+			goto err;
+
+		if (!OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME, "P-384", 0) ||
+		    !OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY, pub_bytes,
+						      sizeof(pub_bytes)) ||
+		    !(params = OSSL_PARAM_BLD_to_param(bld)))
+			goto err;
+
+		pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+		if (!pctx || EVP_PKEY_fromdata_init(pctx) <= 0 ||
+		    EVP_PKEY_fromdata(pctx, evp_pub_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+			goto err;
+
+		check_ctx = EVP_PKEY_CTX_new(*evp_pub_key, NULL);
+		if (!check_ctx || EVP_PKEY_public_check(check_ctx) <= 0) {
+			EVP_PKEY_free(*evp_pub_key);
+			*evp_pub_key = NULL;
+			goto err;
+		}
+		break;
+	}
+	default:
+		RTLS_ERR("unsupported sev sig algo\n");
+		goto err;
+	}
+
+	if (!*evp_pub_key)
+		goto err;
+
+	cmd_ret = 0;
+
+err:
+	EVP_PKEY_CTX_free(check_ctx);
+	EVP_PKEY_CTX_free(pctx);
+	OSSL_PARAM_free(params);
+	OSSL_PARAM_BLD_free(bld);
+	BN_free(modulus);
+	BN_free(pub_exp);
+	BN_free(y_big_num);
+	BN_free(x_big_num);
+
+	return cmd_ret;
+#else
+	RSA *rsa_pub_key = NULL;
+	EC_KEY *ec_pub_key = NULL;
+
+	*evp_pub_key = EVP_PKEY_new();
+	if (!*evp_pub_key)
+		return cmd_ret;
 
 	switch (cert->pub_key_algo) {
 	case SEV_SIG_ALGO_RSA_SHA256:
@@ -81,12 +187,8 @@ static int compile_public_key_from_certificate(const sev_cert *cert, EVP_PKEY *e
 		if (RSA_set0_key(rsa_pub_key, modulus, pub_exp, NULL) != 1)
 			goto err;
 
-		/* Create a public EVP_PKEY from the public RSA_KEY
-         * This function links evp_pub_key to rsa_pub_key, so when evp_pub_key
-         * is freed, rsa_pub_key is freed. We don't want the user to have to
-         * manage 2 keys, so just return EVP_PKEY and make sure user free's it
-         */
-		if (EVP_PKEY_assign_RSA(evp_pub_key, rsa_pub_key) != 1)
+		/* Create a public EVP_PKEY from the public RSA_KEY */
+		if (EVP_PKEY_assign_RSA(*evp_pub_key, rsa_pub_key) != 1)
 			goto err;
 		break;
 	case SEV_SIG_ALGO_ECDSA_SHA256:
@@ -119,12 +221,8 @@ static int compile_public_key_from_certificate(const sev_cert *cert, EVP_PKEY *e
 		if (EC_KEY_check_key(ec_pub_key) != 1)
 			goto err;
 
-		/* Create a public EVP_PKEY from the public EC_KEY
-         * This function links evp_pub_key to ec_pub_key, so when evp_pub_key
-         *  is freed, ec_pub_key is freed. We don't want the user to have to
-         *  manage 2 keys, so just return EVP_PKEY and make sure user free's it
-         */
-		if (EVP_PKEY_assign_EC_KEY(evp_pub_key, ec_pub_key) != 1)
+		/* Create a public EVP_PKEY from the public EC_KEY */
+		if (EVP_PKEY_assign_EC_KEY(*evp_pub_key, ec_pub_key) != 1)
 			goto err;
 		break;
 	default:
@@ -132,20 +230,18 @@ static int compile_public_key_from_certificate(const sev_cert *cert, EVP_PKEY *e
 		goto err;
 	}
 
-	if (!evp_pub_key)
-		goto err;
-
 	cmd_ret = 0;
 
 err:
-	/* Free memory if it was allocated.
-	 * Don't free modulus and pub_exp here. 
-	 * RSA key is associated with these.
-	 */
 	BN_free(y_big_num);
 	BN_free(x_big_num);
+	if (cmd_ret != 0) {
+		EVP_PKEY_free(*evp_pub_key);
+		*evp_pub_key = NULL;
+	}
 
 	return cmd_ret;
+#endif
 }
 
 /* [child_cert] is which we want to validate the signature of.
@@ -205,70 +301,62 @@ static bool validate_signature(const sev_cert *child_cert, const sev_cert *paren
 		if ((parent_cert->pub_key_algo == SEV_SIG_ALGO_RSA_SHA256) ||
 		    (parent_cert->pub_key_algo == SEV_SIG_ALGO_RSA_SHA384)) {
 			uint32_t sig_len = parent_cert->pub_key.rsa.modulus_size / 8;
-			uint8_t decrypted[4096] = { 0 };
 			uint8_t signature[4096] = { 0 };
-
-			RSA *rsa_pub_key = EVP_PKEY_get1_RSA(parent_signing_key);
-			if (!rsa_pub_key) {
-				RTLS_ERR("bad parent signing key\n");
-				break;
-			}
+			const EVP_MD *md = (parent_cert->pub_key_algo == SEV_SIG_ALGO_RSA_SHA256) ?
+						   EVP_sha256() :
+						   EVP_sha384();
 
 			/* Swap the bytes of the signature */
-			memcpy(signature, &cert_sig[i].rsa,
-			       parent_cert->pub_key.rsa.modulus_size / 8);
-			if (!reverse_bytes(signature, parent_cert->pub_key.rsa.modulus_size / 8))
+			memcpy(signature, &cert_sig[i].rsa, sig_len);
+			if (!reverse_bytes(signature, sig_len))
 				break;
 
-			if (RSA_public_decrypt(sig_len, signature, decrypted, rsa_pub_key,
-					       RSA_NO_PADDING) == -1)
-				break;
-
-			if (RSA_verify_PKCS1_PSS(rsa_pub_key, hash,
-						 (parent_cert->pub_key_algo ==
-						  SEV_SIG_ALGO_RSA_SHA256) ?
-							 EVP_sha256() :
-							 EVP_sha384(),
-						 decrypted, -2) != 1) {
-				RSA_free(rsa_pub_key);
+			EVP_PKEY_CTX *vctx = EVP_PKEY_CTX_new(parent_signing_key, NULL);
+			int ok = vctx && EVP_PKEY_verify_init(vctx) > 0 &&
+				 EVP_PKEY_CTX_set_rsa_padding(vctx, RSA_PKCS1_PSS_PADDING) > 0 &&
+				 EVP_PKEY_CTX_set_rsa_pss_saltlen(vctx, -2) > 0 &&
+				 EVP_PKEY_CTX_set_signature_md(vctx, md) > 0 &&
+				 EVP_PKEY_verify(vctx, signature, sig_len, hash, hash_len) == 1;
+			EVP_PKEY_CTX_free(vctx);
+			if (!ok)
 				continue;
-			}
 
 			found_match = true;
-			RSA_free(rsa_pub_key);
 			break;
 		} else if ((parent_cert->pub_key_algo == SEV_SIG_ALGO_ECDSA_SHA256) ||
 			   (parent_cert->pub_key_algo == SEV_SIG_ALGO_ECDSA_SHA384) ||
 			   (parent_cert->pub_key_algo == SEV_SIG_ALGO_ECDH_SHA256) ||
 			   (parent_cert->pub_key_algo == SEV_SIG_ALGO_ECDH_SHA384)) {
 			ECDSA_SIG *tmp_ecdsa_sig = ECDSA_SIG_new();
-			BIGNUM *r_big_num = BN_new();
-			BIGNUM *s_big_num = BN_new();
+			BIGNUM *r_big_num = BN_lebin2bn(cert_sig[i].ecdsa.r, 72, NULL);
+			BIGNUM *s_big_num = BN_lebin2bn(cert_sig[i].ecdsa.s, 72, NULL);
 
-			r_big_num = BN_lebin2bn(cert_sig[i].ecdsa.r, 72, r_big_num);
-			s_big_num = BN_lebin2bn(cert_sig[i].ecdsa.s, 72, s_big_num);
-
-			/* Calling ECDSA_SIG_set0() transfers the memory management of the values to
-			 * the ECDSA_SIG object, and therefore the values that have been passed
-			 * in should not be freed directly after this function has been called。
-			 */
-			if (ECDSA_SIG_set0(tmp_ecdsa_sig, r_big_num, s_big_num) != 1) {
+			if (!tmp_ecdsa_sig || !r_big_num || !s_big_num ||
+			    ECDSA_SIG_set0(tmp_ecdsa_sig, r_big_num, s_big_num) != 1) {
 				BN_free(s_big_num);
 				BN_free(r_big_num);
 				ECDSA_SIG_free(tmp_ecdsa_sig);
 				continue;
 			}
-			EC_KEY *tmp_ec_key = EVP_PKEY_get1_EC_KEY(parent_signing_key);
-			if (ECDSA_do_verify(hash, (uint32_t)hash_len, tmp_ecdsa_sig, tmp_ec_key) !=
-			    1) {
-				EC_KEY_free(tmp_ec_key);
-				ECDSA_SIG_free(tmp_ecdsa_sig);
+
+			unsigned char *der_sig = NULL;
+			int der_len = i2d_ECDSA_SIG(tmp_ecdsa_sig, &der_sig);
+			ECDSA_SIG_free(tmp_ecdsa_sig);
+			if (der_len <= 0) {
+				OPENSSL_free(der_sig);
 				continue;
 			}
 
+			EVP_PKEY_CTX *vctx = EVP_PKEY_CTX_new(parent_signing_key, NULL);
+			int ok = vctx && EVP_PKEY_verify_init(vctx) > 0 &&
+				 EVP_PKEY_verify(vctx, der_sig, (size_t)der_len, hash,
+						 hash_len) == 1;
+			EVP_PKEY_CTX_free(vctx);
+			OPENSSL_free(der_sig);
+			if (!ok)
+				continue;
+
 			found_match = true;
-			EC_KEY_free(tmp_ec_key);
-			ECDSA_SIG_free(tmp_ecdsa_sig);
 			break;
 		} else {
 			RTLS_ERR("unsupported signing key algo! %x\n", parent_cert->pub_key_algo);
@@ -308,14 +396,7 @@ bool verify_sev_cert(const sev_cert *child_cert, const sev_cert *parent_cert1,
 	int numSigs = (parent_cert1 && parent_cert2) ? 2 : 1;
 
 	for (i = 0; i < numSigs; i++) {
-		if (!(parent_pub_key[i] = EVP_PKEY_new()))
-			goto err;
-
-		/* This function allocates memory and attaches an EC_Key
-		 * to your EVP_PKEY so, to prevent mem leaks, make sure
-		 * the EVP_PKEY is freed at the end of this function.
-		 */
-		if (compile_public_key_from_certificate(parent_cert[i], parent_pub_key[i]) != 0)
+		if (compile_public_key_from_certificate(parent_cert[i], &parent_pub_key[i]) != 0)
 			goto err;
 
 		/* Validate the signature */
@@ -379,14 +460,7 @@ bool validate_attestation(sev_cert *pek, sev_attestation_report *report)
 	bool is_valid = false;
 
 	EVP_PKEY *pek_pub_key = NULL;
-	if (!(pek_pub_key = EVP_PKEY_new()))
-		return is_valid;
-
-	/* This function allocates memory and attaches an EC_Key
-	 * to your EVP_PKEY so, to prevent mem leaks, make sure
-	 * the EVP_PKEY is freed at the end of this function.
-	 */
-	if (compile_public_key_from_certificate(pek, pek_pub_key) != 0)
+	if (compile_public_key_from_certificate(pek, &pek_pub_key) != 0)
 		goto err;
 
 	/* Validate the attestation report */
