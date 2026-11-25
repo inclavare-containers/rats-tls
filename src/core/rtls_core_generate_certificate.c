@@ -102,6 +102,11 @@ rats_tls_err_t rtls_core_generate_certificate(rtls_core_context_t *ctx)
 			.organization = (const unsigned char *)"Inclavare Containers",
 			.common_name = (const unsigned char *)"RATS-TLS",
 		},
+		.validity = {
+			.valid = ctx->config.cert_validity.valid,
+			.not_before = ctx->config.cert_validity.not_before,
+			.not_after = ctx->config.cert_validity.not_after,
+		},
 		.cert_buf = NULL,
 		.cert_len = 0,
 		.evidence_buffer = NULL,

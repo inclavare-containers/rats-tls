@@ -7,11 +7,19 @@
 #ifndef _ENCLAVE_CERT_H
 #define _ENCLAVE_CERT_H
 
+#include <stdbool.h>
+
 typedef struct {
 	const unsigned char *organization;
 	const unsigned char *organization_unit;
 	const unsigned char *common_name;
 } cert_subject_t;
+
+typedef struct {
+	bool valid;
+	long not_before;
+	long not_after;
+} cert_validity_t;
 
 typedef struct {
 	uint8_t ias_report[2 * 1024];
@@ -69,6 +77,7 @@ typedef struct {
 
 typedef struct {
 	cert_subject_t subject;
+	cert_validity_t validity;
 	unsigned int cert_len;
 	uint8_t *cert_buf;
 	uint8_t *evidence_buffer;
