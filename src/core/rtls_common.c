@@ -35,6 +35,36 @@ extern void libtls_wrapper_openssl_init(void);
 #endif
 // clang-format on
 
+static void free_cert_name_fields(const unsigned char **org, const unsigned char **ou,
+				  const unsigned char **cn)
+{
+	free((void *)*org);
+	*org = NULL;
+	free((void *)*ou);
+	*ou = NULL;
+	free((void *)*cn);
+	*cn = NULL;
+}
+
+void rtls_core_free_cert_names(rats_tls_conf_t *conf)
+{
+	if (!conf)
+		return;
+
+	if (conf->cert_subject.valid) {
+		free_cert_name_fields(&conf->cert_subject.organization,
+				      &conf->cert_subject.organization_unit,
+				      &conf->cert_subject.common_name);
+		conf->cert_subject.valid = false;
+	}
+	if (conf->cert_issuer.valid) {
+		free_cert_name_fields(&conf->cert_issuer.organization,
+				      &conf->cert_issuer.organization_unit,
+				      &conf->cert_issuer.common_name);
+		conf->cert_issuer.valid = false;
+	}
+}
+
 #ifdef SGX
 void rtls_exit(void)
 {

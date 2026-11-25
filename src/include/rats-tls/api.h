@@ -63,6 +63,22 @@ typedef struct {
 		bool valid;
 		uint8_t cert_type;
 	} quote_sgx_ecdsa;
+
+	/* Optional custom certificate Subject */
+	struct {
+		bool valid;
+		const unsigned char *organization;
+		const unsigned char *organization_unit;
+		const unsigned char *common_name;
+	} cert_subject;
+
+	/* Optional custom certificate Issuer */
+	struct {
+		bool valid;
+		const unsigned char *organization;
+		const unsigned char *organization_unit;
+		const unsigned char *common_name;
+	} cert_issuer;
 } rats_tls_conf_t;
 
 typedef struct rtls_sgx_evidence {
